@@ -136,3 +136,4 @@ dmypy.json
 huggingface_params.py
 data/
 ckpts/
+wandb/
