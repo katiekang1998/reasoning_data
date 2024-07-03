@@ -82,30 +82,16 @@ def train():
         use_auth_token = use_auth_token,
         model_max_length=1024,
         padding_side="right",
-        # eos_token=DEFAULT_EOS_TOKEN,
-        # pad_token=DEFAULT_PAD_TOKEN,
         cache_dir=cache_dir)
 
     special_tokens_dict = dict()
     if tokenizer.pad_token is None:
         special_tokens_dict["pad_token"] = DEFAULT_PAD_TOKEN
-    if tokenizer.eos_token is None:
-        special_tokens_dict["eos_token"] = DEFAULT_EOS_TOKEN
-    if tokenizer.bos_token is None:
-        special_tokens_dict["bos_token"] = DEFAULT_BOS_TOKEN
 
     smart_tokenizer_and_embedding_resize(
         special_tokens_dict=special_tokens_dict,
         tokenizer=tokenizer,
         model=model,
-    )
-
-    tokenizer._tokenizer.post_processor = TemplateProcessing(
-        single=tokenizer.bos_token + " $A " + tokenizer.eos_token,
-        special_tokens=[
-            (tokenizer.eos_token, tokenizer.eos_token_id),
-            (tokenizer.bos_token, tokenizer.bos_token_id),
-        ],
     )
 
     data_module = make_supervised_data_module(tokenizer=tokenizer)

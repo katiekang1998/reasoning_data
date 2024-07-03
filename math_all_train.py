@@ -2,10 +2,8 @@ import copy
 import logging
 from dataclasses import dataclass, field
 from typing import Dict, Optional, Sequence
-
 import torch
 import transformers
-from torch.utils.data import Dataset
 from transformers import Trainer, TrainingArguments
 import os
 from datasets import load_dataset
@@ -14,7 +12,6 @@ import argparse
 import json
 from huggingface_params import cache_dir, use_auth_token
 from utils import *
-from tokenizers.processors import TemplateProcessing
 
 def make_supervised_data_module(tokenizer: transformers.PreTrainedTokenizer) -> Dict:
     """Make dataset and collator for supervised fine-tuning."""
@@ -49,7 +46,6 @@ def make_supervised_data_module(tokenizer: transformers.PreTrainedTokenizer) -> 
     
     train_dataset = SupervisedDataset(train_questions, train_answers, tokenizer=tokenizer)
     
-        
     data_collator = DataCollatorForSupervisedDataset(tokenizer=tokenizer)
     return dict(train_dataset=train_dataset, data_collator=data_collator)
 
@@ -58,12 +54,12 @@ def train():
     
     project_name = "math_all"
     run_name  = "2epochs"
-        
+
     training_args = TrainingArguments(
         num_train_epochs = 2, 
-        per_device_train_batch_size = 3,
-        per_device_eval_batch_size = 3,
-        gradient_accumulation_steps = 2,
+        per_device_train_batch_size = 2,
+        per_device_eval_batch_size = 2,
+        gradient_accumulation_steps = 3,
         lr_scheduler_type = "linear",
         warmup_steps = 20,
         learning_rate = 5e-5,
@@ -96,30 +92,16 @@ def train():
         use_auth_token = use_auth_token,
         model_max_length=1024,
         padding_side="right",
-        # eos_token=DEFAULT_EOS_TOKEN,
-        # pad_token=DEFAULT_PAD_TOKEN,
         cache_dir=cache_dir)
 
     special_tokens_dict = dict()
     if tokenizer.pad_token is None:
         special_tokens_dict["pad_token"] = DEFAULT_PAD_TOKEN
-    if tokenizer.eos_token is None:
-        special_tokens_dict["eos_token"] = DEFAULT_EOS_TOKEN
-    if tokenizer.bos_token is None:
-        special_tokens_dict["bos_token"] = DEFAULT_BOS_TOKEN
 
     smart_tokenizer_and_embedding_resize(
         special_tokens_dict=special_tokens_dict,
         tokenizer=tokenizer,
         model=model,
-    )
-
-    tokenizer._tokenizer.post_processor = TemplateProcessing(
-        single=tokenizer.bos_token + " $A " + tokenizer.eos_token,
-        special_tokens=[
-            (tokenizer.eos_token, tokenizer.eos_token_id),
-            (tokenizer.bos_token, tokenizer.bos_token_id),
-        ],
     )
 
     data_module = make_supervised_data_module(tokenizer=tokenizer)

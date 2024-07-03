@@ -14,7 +14,6 @@ import argparse
 import json
 from huggingface_params import cache_dir, use_auth_token
 from utils import *
-from tokenizers.processors import TemplateProcessing
 
 
 def make_supervised_data_module(tokenizer: transformers.PreTrainedTokenizer) -> Dict:
@@ -54,12 +53,18 @@ def train():
     
     project_name = "gsm8k_all"
     run_name  = "2epochs"
-        
+    
+    batch_size = 24
+    num_devices = torch.cuda.device_count()
+    gradient_accumulation_steps = int((batch_size/2)/num_devices)
+    
+    assert(gradient_accumulation_steps*2*num_devices == batch_size)
+    
     training_args = TrainingArguments(
         num_train_epochs = 2, 
-        per_device_train_batch_size = 3,
-        per_device_eval_batch_size = 3,
-        gradient_accumulation_steps = 2,
+        per_device_train_batch_size = 2,
+        per_device_eval_batch_size = 2,
+        gradient_accumulation_steps = gradient_accumulation_steps,
         lr_scheduler_type = "linear",
         warmup_steps = 20,
         learning_rate = 5e-5,
@@ -88,22 +93,21 @@ def train():
         cache_dir=cache_dir
     )
 
-
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         model_name_or_path,
         use_auth_token = use_auth_token,
         model_max_length=1024,
         padding_side="right",
-        eos_token=DEFAULT_EOS_TOKEN,
-        pad_token=DEFAULT_PAD_TOKEN,
         cache_dir=cache_dir)
 
-    tokenizer._tokenizer.post_processor = TemplateProcessing(
-        single=tokenizer.bos_token + " $A " + tokenizer.eos_token,
-        special_tokens=[
-            (tokenizer.eos_token, tokenizer.eos_token_id),
-            (tokenizer.bos_token, tokenizer.bos_token_id),
-        ],
+    special_tokens_dict = dict()
+    if tokenizer.pad_token is None:
+        special_tokens_dict["pad_token"] = DEFAULT_PAD_TOKEN
+
+    smart_tokenizer_and_embedding_resize(
+        special_tokens_dict=special_tokens_dict,
+        tokenizer=tokenizer,
+        model=model,
     )
 
     data_module = make_supervised_data_module(tokenizer=tokenizer)
