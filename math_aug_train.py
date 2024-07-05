@@ -70,12 +70,15 @@ def train():
     parser.add_argument("--medium_ratio", type=float)
     parser.add_argument("--easy_ratio", type=float)
     parser.add_argument("--num_train_points", type=int)
+    parser.add_argument("--num_epochs", type=int, default=10)
+
     args = parser.parse_args()
 
     hard_ratio = args.hard_ratio
     medium_ratio = args.medium_ratio
     easy_ratio = args.easy_ratio
     num_train_points = args.num_train_points
+    num_epochs = args.num_epochs
 
     print(hard_ratio)
     print(medium_ratio)
@@ -96,7 +99,7 @@ def train():
     assert(gradient_accumulation_steps*2*num_devices==batch_size)
 
     training_args = TrainingArguments(
-        num_train_epochs = 10, 
+        num_train_epochs = num_epochs, 
         per_device_train_batch_size = 2,
         per_device_eval_batch_size = 2,
         gradient_accumulation_steps = gradient_accumulation_steps,
