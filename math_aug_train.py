@@ -103,7 +103,7 @@ def train():
     print("Per device batch: ", per_device_batch_size)
     print("Grad accum steps: ", gradient_accumulation_steps)
 
-    assert(gradient_accumulation_steps*2*num_devices==batch_size)
+    assert(gradient_accumulation_steps*per_device_batch_size*num_devices==batch_size)
 
     training_args = TrainingArguments(
         num_train_epochs = num_epochs, 
