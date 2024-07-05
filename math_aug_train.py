@@ -92,16 +92,23 @@ def train():
 
     batch_size=24
     num_devices = torch.cuda.device_count()
-    gradient_accumulation_steps = int((batch_size/2)/num_devices)
+
+    if num_devices>2:
+        per_device_batch_size = 2
+        gradient_accumulation_steps = int((batch_size/2)/num_devices)
+    else:
+        per_device_batch_size = 1
+        gradient_accumulation_steps = int((batch_size/1)/num_devices)
     print("Num devices: ", num_devices)
+    print("Per device batch: ", per_device_batch_size)
     print("Grad accum steps: ", gradient_accumulation_steps)
 
     assert(gradient_accumulation_steps*2*num_devices==batch_size)
 
     training_args = TrainingArguments(
         num_train_epochs = num_epochs, 
-        per_device_train_batch_size = 2,
-        per_device_eval_batch_size = 2,
+        per_device_train_batch_size = per_device_batch_size,
+        per_device_eval_batch_size = per_device_batch_size,
         gradient_accumulation_steps = gradient_accumulation_steps,
         lr_scheduler_type = "linear",
         warmup_steps = 20,

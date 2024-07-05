@@ -87,7 +87,7 @@ elif args.eval_type == "train_aug_subsample":
     train_questions = np.array(train_questions)
     train_answers = np.array(train_answers)
     
-    subsample_idxs = np.load(ckpt_dir + "/subsample_idxs.npy")[:2000]
+    subsample_idxs = np.load(ckpt_dir + "/subsample_idxs.npy")[:5000]
     eval_questions = train_questions[subsample_idxs]
     eval_questions = [question + "\nAnswer:" for question in eval_questions]
     eval_answers = train_answers[subsample_idxs]
