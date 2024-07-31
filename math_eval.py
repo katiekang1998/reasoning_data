@@ -11,13 +11,13 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--ckpt_dir", type=str)
 parser.add_argument("--seed", type=int, default=2)
 parser.add_argument("--eval_type", type=str, default="test")
-parser.add_argument("--num_devices", type=int, default=2)
+parser.add_argument("--num_devices", type=int, default=1)
+parser.add_argument("--num_samples", type=int, default=5)
 
 args = parser.parse_args()
 
 ckpt_dir = args.ckpt_dir
 
-llm = LLM(model=ckpt_dir, tensor_parallel_size=args.num_devices)  # Name or path of your model
 
 dataset = load_dataset("hendrycks/competition_math")
 train_questions = np.array(dataset["train"]["problem"])
@@ -28,7 +28,7 @@ test_answers = dataset["test"]['solution']
 
 
 sampling_params = SamplingParams(
-    n = 5,
+    n = args.num_samples,
     temperature=0.8,
     max_tokens=1024,
     top_p=0.95,
@@ -87,12 +87,42 @@ elif args.eval_type == "train_aug_subsample":
     train_questions = np.array(train_questions)
     train_answers = np.array(train_answers)
     
-    subsample_idxs = np.load(ckpt_dir + "/subsample_idxs.npy")[:5000]
+    try:
+        subsample_idxs = np.load(ckpt_dir + "/subsample_idxs.npy")[:5000]
+    except:
+        subsample_idxs = np.load(ckpt_dir.rsplit('/', 1)[0] + "/subsample_idxs.npy")[:5000]
+    eval_questions = train_questions[subsample_idxs]
+    eval_questions = [question + "\nAnswer:" for question in eval_questions]
+    eval_answers = train_answers[subsample_idxs]
+elif args.eval_type == "train_aug":
+    with open('data/MATH_aug/AugMATH_part1.jsonl', 'r') as json_file:
+        json_list = list(json_file)
+
+    with open('data/MATH_aug/AugMATH_part2.jsonl', 'r') as json_file:
+        json_list += list(json_file)
+
+    train_questions = []
+    train_answers = []
+    for json_str in json_list:
+        result = json.loads(json_str)
+        train_questions.append(result["query"])
+        train_answers.append(result["response"])
+        
+    train_questions = np.array(train_questions)
+    train_answers = np.array(train_answers)
+    
+    try:
+        subsample_idxs = np.load(ckpt_dir + "/subsample_idxs.npy")
+    except:
+        subsample_idxs = np.load(ckpt_dir.rsplit('/', 1)[0] + "/subsample_idxs.npy")
     eval_questions = train_questions[subsample_idxs]
     eval_questions = [question + "\nAnswer:" for question in eval_questions]
     eval_answers = train_answers[subsample_idxs]
 
+llm = LLM(model=ckpt_dir, tensor_parallel_size=args.num_devices)  # Name or path of your model
 output = llm.generate(eval_questions, sampling_params)
+
+
 
 def last_boxed_only_string(string):
     idx = string.rfind("\\boxed")
@@ -186,5 +216,5 @@ print((answer_types_all==1).mean(axis=-1).mean())
 print((answer_types_all==2).mean(axis=-1).mean())
 
 
-np.save(os.path.join(ckpt_dir, f"{args.eval_type}_answers5_seed{args.seed}.npy"), answers_all)
-np.save(os.path.join(ckpt_dir, f"{args.eval_type}_answer_types5_seed{args.seed}.npy"), answer_types_all)
+np.save(os.path.join(ckpt_dir, f"{args.eval_type}_answers{args.num_samples}_seed{args.seed}.npy"), answers_all)
+np.save(os.path.join(ckpt_dir, f"{args.eval_type}_answer_types{args.num_samples}_seed{args.seed}.npy"), answer_types_all)

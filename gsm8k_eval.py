@@ -11,7 +11,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--ckpt_dir", type=str)
 parser.add_argument("--seed", type=int, default=2)
 parser.add_argument("--eval_type", type=str, default="test")
-parser.add_argument("--num_devices", type=int, default=4)
+parser.add_argument("--num_devices", type=int, default=1)
+parser.add_argument("--num_samples", type=int, default=5)
 
 
 args = parser.parse_args()
@@ -20,14 +21,6 @@ ckpt_dir = args.ckpt_dir
 
 llm = LLM(model=ckpt_dir, tensor_parallel_size=args.num_devices)  # Name or path of your model
 
-sampling_params = SamplingParams(
-    n = 5,
-    temperature=0.8,
-    max_tokens=512,
-    top_p=0.95,
-    seed=args.seed,
-    stop="\nDone."
-)
 
 if args.eval_type == "test":
     dataset = load_dataset("gsm8k", "main")
@@ -37,6 +30,13 @@ if args.eval_type == "test":
     eval_questions = test_questions
     eval_questions = [question + "\nAnswer:" for question in eval_questions]
     eval_answers = test_answers
+if args.eval_type == "train":
+    dataset = load_dataset("gsm8k", "main")
+    train_questions = dataset["train"]["question"]
+    train_answers = dataset["train"]['answer']
+    eval_questions = train_questions
+    eval_questions = [question + "\nAnswer:" for question in train_questions]
+    eval_answers = train_answers
 elif args.eval_type == "train_aug_1":
     with open('data/GSM8k_aug/AugGSM8K_part1.jsonl', 'r') as json_file:
         json_list = list(json_file)
@@ -67,8 +67,30 @@ elif args.eval_type == "train_aug_2":
     eval_questions = train_questions
     eval_questions = [question + "\nAnswer:" for question in eval_questions]
     eval_answers = train_answers
+elif args.eval_type == "train_aug":
+    with open('data/GSM8k_aug/AugGSM8K_part1.jsonl', 'r') as json_file:
+        json_list = list(json_file)
 
-output = llm.generate(eval_questions, sampling_params)
+    with open('data/GSM8k_aug/AugGSM8K_part2.jsonl', 'r') as json_file:
+        json_list += list(json_file)
+
+    train_questions = []
+    train_answers = []
+    for json_str in json_list:
+        result = json.loads(json_str)
+        train_questions.append(result["query"])
+        train_answers.append(result["response"])
+        
+    train_questions = np.array(train_questions)
+    train_answers = np.array(train_answers)
+    
+    try:
+        subsample_idxs = np.load(ckpt_dir + "/subsample_idxs.npy")
+    except:
+        subsample_idxs = np.load(ckpt_dir.rsplit('/', 1)[0] + "/subsample_idxs.npy")
+    eval_questions = train_questions[subsample_idxs]
+    eval_questions = [question + "\nAnswer:" for question in eval_questions]
+    eval_answers = train_answers[subsample_idxs]
     
 
 def get_aug_answer(full_answer):
@@ -91,10 +113,10 @@ def extract_latex(text):
     return text[start:].replace(",", "")
 
 def answer_type_individial(output , answer):
-    if args.eval_type == "test":
-        answer = extract_latex(answer)
-    else:
+    if "aug" in args.eval_type:
         answer = get_aug_answer(answer)
+    else:
+        answer = extract_latex(answer)
 
     output_answer = get_aug_answer(output)
     if output_answer == None:
@@ -111,25 +133,37 @@ def answer_type_individial(output , answer):
     return answer_type
 
 
+sampling_params = SamplingParams(
+    n = args.num_samples,
+    temperature=0.8,
+    max_tokens=512,
+    top_p=0.95,
+    seed=args.seed,
+    stop="\nDone."
+)
+
+
+output = llm.generate(eval_questions, sampling_params)
+
+
 answer_types_all = []
-# answers_all = []
+answers_all = []
 for i in range(len(output)):
     answer_types = []
-    # answers = []
+    answers = []
     for item in output[i].outputs:
-        # answers.append(item.text)
+        answers.append(item.text)
         answer_type = answer_type_individial(item.text, eval_answers[i])
         answer_types.append(answer_type)
     answer_types_all.append(answer_types)
-    # answers_all.append(answers)
+    answers_all.append(answers)
 
 answer_types_all = np.array(answer_types_all)
-# answers_all = np.array(answers_all)
+answers_all = np.array(answers_all)
 print((answer_types_all==0).mean(axis=-1).mean())
 print((answer_types_all==1).mean(axis=-1).mean())
 print((answer_types_all==2).mean(axis=-1).mean())
 
 
-# np.save(os.path.join(ckpt_dir, f"{args.eval_type}_answers5_seed{args.seed}.npy"), answers_all)
-np.save(os.path.join(ckpt_dir, f"{args.eval_type}_answer_types5_seed{args.seed}.npy"), answer_types_all)
-import IPython; IPython.embed()
+np.save(os.path.join(ckpt_dir, f"{args.eval_type}_answers{args.num_samples}_seed{args.seed}.npy"), answers_all)
+np.save(os.path.join(ckpt_dir, f"{args.eval_type}_answer_types{args.num_samples}_seed{args.seed}.npy"), answer_types_all)

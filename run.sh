@@ -1,4 +1,9 @@
 
+
+
+
+
+
 NUM_TRAIN_POINTS=5000
 for HARD_RATIO in 0. 0.25
 do

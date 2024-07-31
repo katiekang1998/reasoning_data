@@ -33,10 +33,19 @@ def make_supervised_data_module(output_dir, easy_ratio, medium_ratio, hard_ratio
     train_answers = np.array(train_answers)
     
     
-    train_num_correct = (np.concatenate([np.load("data/MATH_aug/train_aug_1_answer_types5_seed2.npy"), np.load("data/MATH_aug/train_aug_2_answer_types5_seed2.npy")], axis=0)==0).sum(axis=-1)
-    easy_idxs = np.where(train_num_correct==5)[0]
-    medium_idxs = np.where((train_num_correct<5)*(train_num_correct>0))[0]
-    hard_idxs = np.where(train_num_correct==0)[0]
+    train_num_correct2 = (np.concatenate([np.load("data/MATH_aug/train_aug_1_answer_types5_seed2.npy"), np.load("data/MATH_aug/train_aug_2_answer_types5_seed2.npy")], axis=0)==0).mean(axis=-1)
+    train_num_correct1 = (np.concatenate([np.load("data/MATH_aug/train_aug_1_answer_types5_seed1.npy"), np.load("data/MATH_aug/train_aug_2_answer_types5_seed1.npy")], axis=0)==0).mean(axis=-1)
+    train_num_correct0 = (np.concatenate([np.load("data/MATH_aug/train_aug_1_answer_types5_seed0.npy"), np.load("data/MATH_aug/train_aug_2_answer_types5_seed0.npy")], axis=0)==0).mean(axis=-1)
+
+    train_num_correct = np.mean([train_num_correct2, train_num_correct1, train_num_correct0], axis=0)
+
+    # easy_idxs = np.where(train_num_correct==5)[0]
+    # medium_idxs = np.where((train_num_correct<5)*(train_num_correct>0))[0]
+    # hard_idxs = np.where(train_num_correct==0)[0]
+
+    easy_idxs = np.where(train_num_correct>=0.9)[0]
+    medium_idxs = np.where((train_num_correct<0.9)*(train_num_correct>=0.1))[0]
+    hard_idxs = np.where(train_num_correct<0.1)[0]
     
     subsample_easy_idxs = np.random.choice(easy_idxs, int(easy_ratio*num_train_points), replace=False)
     subsample_medium_idxs = np.random.choice(medium_idxs, int(medium_ratio*num_train_points), replace=False)
@@ -86,7 +95,7 @@ def train():
     
     assert(hard_ratio+medium_ratio+easy_ratio == 1)
     
-    project_name = "math_aug"
+    project_name = "math_aug3"
     run_name  =f"easy{easy_ratio:.2f}_medium{medium_ratio:.2f}_hard{hard_ratio:.2f}_total{num_train_points}"
     output_dir = f"ckpts/{project_name}_{run_name}"
 
@@ -123,6 +132,7 @@ def train():
         # logging_steps = 25,
         save_strategy = "no",
         # save_strategy = "epoch",
+        # save_steps=2000,
         save_only_model = True,
         run_name=run_name,
         bf16 = True,
