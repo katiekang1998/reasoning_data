@@ -1,17 +1,57 @@
+
+
+CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_6epochs_full_lr0.0002_bs128/checkpoint-348 --eval_type train_gpt4o --num_samples 50
+
+
+
+CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_6epochs_full_lr5e-07_bs128/checkpoint-348 --eval_type train_gpt4o --num_samples 50
+
+
+
+CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_6epochs_full_lr2e-05_bs128/checkpoint-348 --eval_type train_gpt4o --num_samples 50
+
+
+CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_6epochs_full_lr2e-05_bs128_2/checkpoint-348 --eval_type train --num_samples 50
+
+
+CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_12epochs_full_lr5e-07_bs128/checkpoint-580 --eval_type train --num_samples 5
+CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_12epochs_full_lr5e-07_bs128/checkpoint-580 --eval_type test --num_samples 50
+
+CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_12epochs_full_lr5e-07_bs128/checkpoint-696 --eval_type train --num_samples 5
+CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_12epochs_full_lr5e-07_bs128/checkpoint-696 --eval_type test --num_samples 50
+
+
+# CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_6epochs_full_lr0.0002_bs128/checkpoint-292 --eval_type train --num_samples 50
+# CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_6epochs_full_lr0.0002_bs128/checkpoint-292 --eval_type test --num_samples 50
+
+# CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_6epochs_full_lr0.0002_bs128/checkpoint-348 --eval_type train --num_samples 50
+# CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_6epochs_full_lr0.0002_bs128/checkpoint-348 --eval_type test --num_samples 50
+
+
+
+
+# CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_6epochs_full_lr2e-07_bs128/checkpoint-292 --eval_type train
+# CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_6epochs_full_lr2e-07_bs128/checkpoint-292 --eval_type test
+
+# CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_6epochs_full_lr5e-05/checkpoint-1246 --eval_type test
+# CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_6epochs_full_lr5e-05/checkpoint-1246 --eval_type train
+
+# CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_6epochs_full_lr5e-05/checkpoint-1558 --eval_type train
+
 # CUDA_VISIBLE_DEVICES=3 python math_eval.py --ckpt_dir ckpts/math_aug3_rand_50_unmemorized_eq_50_total5292_epochs10/checkpoint-440 --eval_type test
 
-CUDA_VISIBLE_DEVICES=3 python math_eval.py --ckpt_dir ckpts/math_aug3_unmemorized_eq_4_total2646_epochs5/checkpoint-550 --eval_type test
-CUDA_VISIBLE_DEVICES=3 python math_eval.py --ckpt_dir ckpts/math_aug3_unmemorized_eq_4_total2646_epochs5/checkpoint-441 --eval_type test
-CUDA_VISIBLE_DEVICES=3 python math_eval.py --ckpt_dir ckpts/math_aug3_unmemorized_eq_4_total2646_epochs5/checkpoint-331 --eval_type test
-CUDA_VISIBLE_DEVICES=3 python math_eval.py --ckpt_dir ckpts/math_aug3_unmemorized_eq_4_total2646_epochs5/checkpoint-220 --eval_type test
-CUDA_VISIBLE_DEVICES=3 python math_eval.py --ckpt_dir ckpts/math_aug3_unmemorized_eq_4_total2646_epochs5/checkpoint-110 --eval_type test
+# CUDA_VISIBLE_DEVICES=3 python math_eval.py --ckpt_dir ckpts/math_aug3_unmemorized_eq_4_total2646_epochs5/checkpoint-550 --eval_type test
+# CUDA_VISIBLE_DEVICES=3 python math_eval.py --ckpt_dir ckpts/math_aug3_unmemorized_eq_4_total2646_epochs5/checkpoint-441 --eval_type test
+# CUDA_VISIBLE_DEVICES=3 python math_eval.py --ckpt_dir ckpts/math_aug3_unmemorized_eq_4_total2646_epochs5/checkpoint-331 --eval_type test
+# CUDA_VISIBLE_DEVICES=3 python math_eval.py --ckpt_dir ckpts/math_aug3_unmemorized_eq_4_total2646_epochs5/checkpoint-220 --eval_type test
+# CUDA_VISIBLE_DEVICES=3 python math_eval.py --ckpt_dir ckpts/math_aug3_unmemorized_eq_4_total2646_epochs5/checkpoint-110 --eval_type test
 
 
-CUDA_VISIBLE_DEVICES=3 python math_eval.py --ckpt_dir ckpts/math_aug3_unmemorized_eq_4_total2646_epochs5/checkpoint-550 --eval_type train_aug_subsample
-CUDA_VISIBLE_DEVICES=3 python math_eval.py --ckpt_dir ckpts/math_aug3_unmemorized_eq_4_total2646_epochs5/checkpoint-441 --eval_type train_aug_subsample
-CUDA_VISIBLE_DEVICES=3 python math_eval.py --ckpt_dir ckpts/math_aug3_unmemorized_eq_4_total2646_epochs5/checkpoint-331 --eval_type train_aug_subsample
-CUDA_VISIBLE_DEVICES=3 python math_eval.py --ckpt_dir ckpts/math_aug3_unmemorized_eq_4_total2646_epochs5/checkpoint-220 --eval_type train_aug_subsample
-CUDA_VISIBLE_DEVICES=3 python math_eval.py --ckpt_dir ckpts/math_aug3_unmemorized_eq_4_total2646_epochs5/checkpoint-110 --eval_type train_aug_subsample
+# CUDA_VISIBLE_DEVICES=3 python math_eval.py --ckpt_dir ckpts/math_aug3_unmemorized_eq_4_total2646_epochs5/checkpoint-550 --eval_type train_aug_subsample
+# CUDA_VISIBLE_DEVICES=3 python math_eval.py --ckpt_dir ckpts/math_aug3_unmemorized_eq_4_total2646_epochs5/checkpoint-441 --eval_type train_aug_subsample
+# CUDA_VISIBLE_DEVICES=3 python math_eval.py --ckpt_dir ckpts/math_aug3_unmemorized_eq_4_total2646_epochs5/checkpoint-331 --eval_type train_aug_subsample
+# CUDA_VISIBLE_DEVICES=3 python math_eval.py --ckpt_dir ckpts/math_aug3_unmemorized_eq_4_total2646_epochs5/checkpoint-220 --eval_type train_aug_subsample
+# CUDA_VISIBLE_DEVICES=3 python math_eval.py --ckpt_dir ckpts/math_aug3_unmemorized_eq_4_total2646_epochs5/checkpoint-110 --eval_type train_aug_subsample
 
 
 # CUDA_VISIBLE_DEVICES=3 python math_eval.py --ckpt_dir ckpts/math_aug3_rand_50_unmemorized_eq_50_total5292_epochs10/checkpoint-440 --eval_type train_aug_subsample
