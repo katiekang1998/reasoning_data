@@ -6,12 +6,12 @@ import argparse
 import re 
 from utils import is_equiv
 import json
+from vllm.lora.request import LoRARequest
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--ckpt_dir", type=str)
 parser.add_argument("--seed", type=int, default=2)
 parser.add_argument("--eval_type", type=str, default="test")
-parser.add_argument("--num_devices", type=int, default=1)
 parser.add_argument("--num_samples", type=int, default=5)
 parser.add_argument("--temp", type=float, default=0.8)
 
@@ -21,7 +21,12 @@ args = parser.parse_args()
 ckpt_dir = args.ckpt_dir
 temp = args.temp
 
-llm = LLM(model=ckpt_dir, tensor_parallel_size=args.num_devices)  # Name or path of your model
+if "14B" in ckpt_dir:
+    num_devices = 1
+else:
+    num_devices = 1
+
+llm = LLM(model=ckpt_dir, tensor_parallel_size=num_devices, trust_remote_code=True)  # Name or path of your model
 
 def perturb_string(string):
     substrings = string.split()
@@ -226,3 +231,6 @@ print((answer_types_all==2).mean(axis=-1).mean())
 
 np.save(os.path.join(ckpt_dir, f"{args.eval_type}_answers{args.num_samples}_seed{args.seed}_temp{args.temp}.npy"), answers_all)
 np.save(os.path.join(ckpt_dir, f"{args.eval_type}_answer_types{args.num_samples}_seed{args.seed}_temp{args.temp}.npy"), answer_types_all)
+
+if args.eval_type == "test_small":
+    import IPython; IPython.embed()

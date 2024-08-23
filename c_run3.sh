@@ -1,24 +1,59 @@
 
+RUN_NAME=gsm8k_orig_3epochs_full_lr5e-05_bs120_Qwen-14B
 
-CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_6epochs_full_lr0.0002_bs128/checkpoint-348 --eval_type train_gpt4o --num_samples 50
-
-
-
-CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_6epochs_full_lr5e-07_bs128/checkpoint-348 --eval_type train_gpt4o --num_samples 50
-
+CUDA_VISIBLE_DEVICES=4,5 python gsm8k_eval.py --ckpt_dir ckpts/$RUN_NAME/checkpoint-186 --eval_type test --num_samples 5
+CUDA_VISIBLE_DEVICES=4,5 python gsm8k_eval.py --ckpt_dir ckpts/$RUN_NAME/checkpoint-186 --eval_type train --num_samples 5
+CUDA_VISIBLE_DEVICES=4,5 python gsm8k_eval_perplexity.py --ckpt_dir $RUN_NAME --ckpt 186
 
 
-CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_6epochs_full_lr2e-05_bs128/checkpoint-348 --eval_type train_gpt4o --num_samples 50
 
 
-CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_6epochs_full_lr2e-05_bs128_2/checkpoint-348 --eval_type train --num_samples 50
+# torchrun --nproc_per_node=4 --master_port=1234 gsm8k_train.py --learning_rate 5e-5 --epochs 12 --train_type quarter 
+
+# RUN_NAME=gsm8k_orig_12epochs_quarter_lr5e-05_bs128
+
+# for CKPT in 29 58 87 116 145 174
+# do
+#     CUDA_VISIBLE_DEVICES=0 python gsm8k_eval_perplexity.py --ckpt_dir $RUN_NAME --ckpt $CKPT &
+#     CUDA_VISIBLE_DEVICES=1 python gsm8k_eval.py --ckpt_dir ckpts/$RUN_NAME/checkpoint-$CKPT --eval_type test --num_samples 5 &
+#     CUDA_VISIBLE_DEVICES=2 python gsm8k_eval.py --ckpt_dir ckpts/$RUN_NAME/checkpoint-$CKPT --eval_type train --num_samples 5 &
+#     CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/$RUN_NAME/checkpoint-$CKPT --eval_type test --num_samples 1 --temp 0 &
+#     wait 
+# done
+
+# torchrun --nproc_per_node=4 --master_port=1234 gsm8k_train.py --learning_rate 5e-5 --epochs 24 --train_type eighth 
+
+# RUN_NAME=gsm8k_orig_24epochs_eighth_lr5e-05_bs128
+
+# for CKPT in 29 58 87 116 145 174
+# do
+#     CUDA_VISIBLE_DEVICES=0 python gsm8k_eval_perplexity.py --ckpt_dir $RUN_NAME --ckpt $CKPT &
+#     CUDA_VISIBLE_DEVICES=1 python gsm8k_eval.py --ckpt_dir ckpts/$RUN_NAME/checkpoint-$CKPT --eval_type test --num_samples 5 &
+#     CUDA_VISIBLE_DEVICES=2 python gsm8k_eval.py --ckpt_dir ckpts/$RUN_NAME/checkpoint-$CKPT --eval_type train --num_samples 5 &
+#     CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/$RUN_NAME/checkpoint-$CKPT --eval_type test --num_samples 1 --temp 0 &
+#     wait 
+# done
 
 
-CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_12epochs_full_lr5e-07_bs128/checkpoint-580 --eval_type train --num_samples 5
-CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_12epochs_full_lr5e-07_bs128/checkpoint-580 --eval_type test --num_samples 50
+# CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_6epochs_full_lr0.0002_bs128/checkpoint-348 --eval_type train_gpt4o --num_samples 50
 
-CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_12epochs_full_lr5e-07_bs128/checkpoint-696 --eval_type train --num_samples 5
-CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_12epochs_full_lr5e-07_bs128/checkpoint-696 --eval_type test --num_samples 50
+
+
+# CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_6epochs_full_lr5e-07_bs128/checkpoint-348 --eval_type train_gpt4o --num_samples 50
+
+
+
+# CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_6epochs_full_lr2e-05_bs128/checkpoint-348 --eval_type train_gpt4o --num_samples 50
+
+
+# CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_6epochs_full_lr2e-05_bs128_2/checkpoint-348 --eval_type train --num_samples 50
+
+
+# CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_12epochs_full_lr5e-07_bs128/checkpoint-580 --eval_type train --num_samples 5
+# CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_12epochs_full_lr5e-07_bs128/checkpoint-580 --eval_type test --num_samples 50
+
+# CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_12epochs_full_lr5e-07_bs128/checkpoint-696 --eval_type train --num_samples 5
+# CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_12epochs_full_lr5e-07_bs128/checkpoint-696 --eval_type test --num_samples 50
 
 
 # CUDA_VISIBLE_DEVICES=3 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_orig_6epochs_full_lr0.0002_bs128/checkpoint-292 --eval_type train --num_samples 50
