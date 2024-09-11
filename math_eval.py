@@ -31,7 +31,7 @@ sampling_params = SamplingParams(
     n = args.num_samples,
     temperature=0.8,
     max_tokens=1024,
-    top_p=0.95,
+    # top_p=0.95,
     seed=args.seed,
     stop="\nDone."
 )
@@ -40,6 +40,10 @@ if args.eval_type == "test":
     eval_questions = test_questions
     eval_questions = [question + "\nAnswer:" for question in eval_questions]
     eval_answers = test_answers
+elif args.eval_type == "train":
+    eval_questions = train_questions
+    eval_questions = [question + "\nAnswer:" for question in eval_questions]
+    eval_answers = train_answers
 elif args.eval_type == "train_aug_1":
     with open('data/MATH_aug/AugMATH_part1.jsonl', 'r') as json_file:
         json_list = list(json_file)
@@ -175,7 +179,7 @@ def get_aug_answer(full_answer):
         return answer
 
 def answer_type_individial(output , answer):
-    if args.eval_type == "test":
+    if args.eval_type == "test" or args.eval_type == "train":
         answer = remove_boxed(last_boxed_only_string(answer))
     else:
         answer = get_aug_answer(answer)

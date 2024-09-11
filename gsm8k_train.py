@@ -15,6 +15,62 @@ import json
 from huggingface_params import cache_dir, use_auth_token
 from utils import *
 from peft import LoraConfig, get_peft_model
+from torch.utils.data import DataLoader
+from transformers.utils import is_datasets_available
+import datasets
+from transformers.trainer_utils import seed_worker
+
+
+class CustomTrainer(Trainer):
+    # def get_train_dataloader(self):
+    #     print("HEREEEEE")
+    #     return DataLoader(
+    #         self.train_dataset,
+    #         batch_size=self.args.train_batch_size,
+    #         collate_fn=self.data_collator,
+    #         drop_last=self.args.dataloader_drop_last,
+    #         num_workers=self.args.dataloader_num_workers,
+    #         pin_memory=self.args.dataloader_pin_memory,
+    #         shuffle=False  # Disable shuffling here
+    #     )
+    
+    def get_train_dataloader(self) -> DataLoader:
+        """
+        Returns the training [`~torch.utils.data.DataLoader`].
+
+        Will use no sampler if `train_dataset` does not implement `__len__`, a random sampler (adapted to distributed
+        training if necessary) otherwise.
+
+        Subclass and override this method if you want to inject some custom behavior.
+        """
+        if self.train_dataset is None:
+            raise ValueError("Trainer: training requires a train_dataset.")
+
+        train_dataset = self.train_dataset
+        data_collator = self.data_collator
+        if is_datasets_available() and isinstance(train_dataset, datasets.Dataset):
+            train_dataset = self._remove_unused_columns(train_dataset, description="training")
+        else:
+            data_collator = self._get_collator_with_removed_columns(data_collator, description="training")
+
+        dataloader_params = {
+            "batch_size": self._train_batch_size,
+            "collate_fn": data_collator,
+            "num_workers": self.args.dataloader_num_workers,
+            "pin_memory": self.args.dataloader_pin_memory,
+            "persistent_workers": self.args.dataloader_persistent_workers,
+            "shuffle": False
+        }
+
+        if not isinstance(train_dataset, torch.utils.data.IterableDataset):
+            dataloader_params["sampler"] = self._get_train_sampler()
+            dataloader_params["drop_last"] = self.args.dataloader_drop_last
+            dataloader_params["worker_init_fn"] = seed_worker
+            dataloader_params["prefetch_factor"] = self.args.dataloader_prefetch_factor
+
+        return self.accelerator.prepare(DataLoader(train_dataset, **dataloader_params))
+
+
 
 def make_supervised_data_module(output_dir, train_type, tokenizer: transformers.PreTrainedTokenizer) -> Dict:
 
@@ -26,9 +82,9 @@ def make_supervised_data_module(output_dir, train_type, tokenizer: transformers.
     
     # if train_type == "memorized":
     #     subsample_idxs = np.load("ckpts/gsm8k_orig_6epochs/memorized_subsample_idxs.npy")
-    if train_type == "unmemorized":
-        subsample_idxs = np.load("ckpts/gsm8k_orig_6epochs_full_lr2e-05_bs128/unmemorized_idxs.npy")
-    elif train_type == "full":
+    if train_type == "unmemorized_gt_1":
+        subsample_idxs = np.load("gsm8k_unmemorized_idxs>1.npy")
+    elif (train_type == "full" or "shuffle" in train_type):
         subsample_idxs = np.arange(len(train_questions_orig))
     elif train_type == "half":
         subsample_idxs= np.arange(len(train_questions_orig))
@@ -42,13 +98,22 @@ def make_supervised_data_module(output_dir, train_type, tokenizer: transformers.
     else:
         1/0
     
-    np.random.shuffle(subsample_idxs)
+    # np.random.shuffle(subsample_idxs)
+    
+    if train_type == "shuffle_custom":
+        print("shuffle custom")
+        unmemorized_acc_cummax_all = []
+        for shuffle_idx in range(6):
+            unmemorized_acc_cummax_all_idx = np.load(f"ckpts/gsm8k_orig_3epochs_shuffle{shuffle_idx+1}_lr2e-05_bs128/unmemorized_acc_cummax_all.npy").max(axis=0)
+            unmemorized_acc_cummax_all.append(unmemorized_acc_cummax_all_idx)
+        unmemorized_acc_cummax_all = np.mean(unmemorized_acc_cummax_all, axis=0)
+        subsample_idxs = np.argsort(unmemorized_acc_cummax_all) #lowest to highest
+        subsample_idxs = np.flip(subsample_idxs)
     
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     
     np.save(os.path.join(output_dir, "subsample_idxs.npy"), subsample_idxs)
-    
     
     train_dataset = SupervisedDataset(train_questions_orig[subsample_idxs], train_answers_orig[subsample_idxs], tokenizer=tokenizer)
     
@@ -56,16 +121,14 @@ def make_supervised_data_module(output_dir, train_type, tokenizer: transformers.
     return dict(train_dataset=train_dataset, data_collator=data_collator)
 
 def train():
-    
-
     parser = argparse.ArgumentParser()
     parser.add_argument("--train_type", type=str, default="full")
     parser.add_argument("--learning_rate", type=float, default=5e-5)
     parser.add_argument("--batch_size", type=int, default=128)
-    parser.add_argument("--epochs", type=int, default=6)
+    parser.add_argument("--epochs", type=int, default=3)
     parser.add_argument("--lora", type=bool, default=False)
     parser.add_argument("--model", type=str, default="meta-llama/Meta-Llama-3-8B")
-
+    parser.add_argument("--dont_save_intermediate", action='store_true')
 
     args = parser.parse_args()
     train_type = args.train_type
@@ -74,6 +137,7 @@ def train():
     batch_size = args.batch_size
     use_lora = args.lora
     model_name_or_path = args.model
+    save_intermediate = not args.dont_save_intermediate
     
     
     project_name = "gsm8k_orig"
@@ -107,24 +171,27 @@ def train():
     # save_steps = 7473 // batch_size * 27
     
     # save_strategy = "steps"
-    
-    if epochs <= 6:
-        save_strategy = "epoch"
-        save_steps = None 
-    elif epochs <= 12:
-        # save every 2 epochs
-        save_strategy = "steps"
-        save_steps = 29
-        # save_steps = 7473 // batch_size * 2
+    if save_intermediate:
+        if epochs <= 6:
+            save_strategy = "epoch"
+            save_steps = None 
+        elif epochs <= 12:
+            # save every 2 epochs
+            save_strategy = "steps"
+            save_steps = 28
+            # save_steps = 7473 // batch_size * 2
 
-    elif epochs <= 24:
-        save_strategy = "steps"
-        save_steps = 29
-        # save_steps = 7473 // batch_size * 2
+        elif epochs <= 24:
+            save_strategy = "steps"
+            save_steps = 28
+            # save_steps = 7473 // batch_size * 2
+        else:
+            # save every 2 epochs
+            save_steps = 7473 // batch_size * 3
+            save_strategy = "steps"
     else:
-        # save every 2 epochs
-        save_steps = 7473 // batch_size * 3
-        save_strategy = "steps"
+        save_strategy = "no"
+        save_steps = None
     
     output_dir = f"ckpts/{project_name}_{run_name}"
     
@@ -176,10 +243,12 @@ def train():
             save_steps=save_steps,
             save_only_model = True,
             run_name=run_name,
-            bf16 = True,
+            # bf16 = True,
             fsdp= "full_shard auto_wrap",
             fsdp_transformer_layer_cls_to_wrap= 'LlamaDecoderLayer',
-            tf32 =True,
+            # tf32 =True,
+            fp16=True,
+            weight_decay=0.01
         )
         
 
@@ -234,11 +303,15 @@ def train():
         )
 
     data_module = make_supervised_data_module(output_dir, train_type, tokenizer=tokenizer)
-    trainer = Trainer(model=model, tokenizer=tokenizer, args=training_args, **data_module)
+    if "shuffle" in train_type:
+        trainer = CustomTrainer(model=model, tokenizer=tokenizer, args=training_args, **data_module)
+    else:
+        trainer = Trainer(model=model, tokenizer=tokenizer, args=training_args, **data_module)
     trainer.train()
     
-    # trainer.save_state()
-    # trainer.save_model(output_dir=output_dir)
+    if not save_intermediate:
+        trainer.save_state()
+        trainer.save_model(output_dir=output_dir)
 
 
 if __name__ == "__main__":

@@ -224,6 +224,7 @@ for i in range(len(output)):
 
 answer_types_all = np.array(answer_types_all)
 answers_all = np.array(answers_all)
+print(ckpt_dir)
 print((answer_types_all==0).mean(axis=-1).mean())
 print((answer_types_all==1).mean(axis=-1).mean())
 print((answer_types_all==2).mean(axis=-1).mean())

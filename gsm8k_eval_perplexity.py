@@ -45,9 +45,6 @@ def calculate_output_perplexity(input_text, output_text, model, tokenizer):
     input_length = len(tokenizer.encode(input_text, add_special_tokens=False))
     output_length = len(tokenizer.encode(output_text, add_special_tokens=False))
     
-    
-    import IPython; IPython.embed()
-
     with torch.no_grad():
         # Get model outputs (logits)
         outputs = model(**inputs)
@@ -96,8 +93,8 @@ for i in tqdm.tqdm(range(len(eval_questions))):
     perplexities.append(perplexity)
     num_tokens_all.append(num_tokens)
 
-np.save(model_name+"/train_perplexities2.npy", perplexities)
-np.save(model_name+"/train_num_tokens2.npy", num_tokens_all)
+np.save(model_name+"/train_perplexities.npy", perplexities)
+np.save(model_name+"/train_num_tokens.npy", num_tokens_all)
 
 
 
