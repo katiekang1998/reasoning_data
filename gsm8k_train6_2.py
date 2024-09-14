@@ -39,15 +39,19 @@ def make_supervised_data_module(output_dir, train_type, learning_rate, batch_siz
         train_questions_amrith1.append(result["query"])
         train_answers_amrith1.append(result["response"].replace("SOLUTION:\n", "").replace("\n\n", "\n"))
 
-    train_questions_amrith1 = np.array(train_questions_amrith1)
-    train_answers_amrith1 = np.array(train_answers_amrith1)
+    train_questions_amrith1 = np.array(train_questions_amrith1)[:3*len(train_questions_orig)]
+    train_answers_amrith1 = np.array(train_answers_amrith1)[:3*len(train_questions_orig)]
     
     train_questions+= list(train_questions_amrith1)
     train_answers+= list(train_answers_amrith1)
     
+    
+    
 
+    with open('ckpts/amrith_gsm8k/gsm8k_batch_1_outputs_gpt4.jsonl', 'r') as json_file:
+        json_list = list(json_file)[3*len(train_questions_orig):]
     with open('ckpts/amrith_gsm8k/gsm8k_batch_2_outputs_gpt4.jsonl', 'r') as json_file:
-        json_list = list(json_file)
+        json_list += list(json_file)
     with open('ckpts/amrith_gsm8k/gsm8k_batch_3_outputs_gpt4.jsonl', 'r') as json_file:
         json_list += list(json_file)
     with open('ckpts/amrith_gsm8k/gsm8k_batch_4_outputs_gpt4.jsonl', 'r') as json_file:
@@ -69,27 +73,27 @@ def make_supervised_data_module(output_dir, train_type, learning_rate, batch_siz
     amrith_data_orig_idxs = np.tile(np.arange(len(train_questions_orig)), num_repeats)
     
     
-    orig_data_unmemorized_acc = np.load("ckpts/gsm8k_amrith_3epochs_batch_1_all_lr2e-05_bs128/checkpoint-1224/unmemorized_acc_cummax_all.npy")
+    orig_data_unmemorized_acc = np.load("ckpts/gsm8k_amrith_3epochs_3copies_lr2e-05_bs128/unmemorized_acc_cummax_all.npy")[-1]
     
     # orig_data_unmemorized_acc = np.load("gsm8k_unmemorized_acc_cummax_all.npy")
     
     
     # if train_type =="batch_1_threshold0.125":
     #     orig_data_subsample_idxs = np.where(orig_data_unmemorized_acc<=0.125)[0]
-    if train_type =="batch_1_threshold0.25":
+    if train_type =="3copies_threshold0.25":
         orig_data_subsample_idxs = np.where(orig_data_unmemorized_acc<=0.25)[0]
-    elif train_type =="batch_1_threshold0.5":
+    elif train_type =="3copies_threshold0.5":
         orig_data_subsample_idxs = np.where(orig_data_unmemorized_acc<=0.5)[0]
-    elif train_type =="batch_1_threshold0.75":
+    elif train_type =="3copies_threshold0.75":
         orig_data_subsample_idxs = np.where(orig_data_unmemorized_acc<=0.75)[0]
-    elif train_type =="batch_1_threshold1":
+    elif train_type =="3copies_threshold1":
         orig_data_subsample_idxs = np.where(orig_data_unmemorized_acc<=1)[0]
     else:
         raise Exception("Invalid train type")
 
     if dist.get_rank() == 0:
         amrith_data_subsample_idxs = np.where([elem in orig_data_subsample_idxs for elem in amrith_data_orig_idxs])[0]
-        amrith_data_subsample_idxs = np.random.choice(amrith_data_subsample_idxs, 24000, replace=False)
+        amrith_data_subsample_idxs = np.random.choice(amrith_data_subsample_idxs, len(train_questions_orig)*2, replace=False)
         
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
@@ -100,14 +104,6 @@ def make_supervised_data_module(output_dir, train_type, learning_rate, batch_siz
         amrith_data_subsample_idxs = np.load(os.path.join(output_dir, f"amrith_data_subsample_idxs.npy"))
     print(amrith_data_subsample_idxs)
 
-    # amrith_data_subsample_idxs = np.where([elem in orig_data_subsample_idxs for elem in amrith_data_orig_idxs])[0]
-    # amrith_data_subsample_idxs = np.random.choice(amrith_data_subsample_idxs, 28000, replace=False)
-    
-    # if not os.path.exists(output_dir):
-    #     os.makedirs(output_dir)
-    
-    # np.save(os.path.join(output_dir, "amrith_data_subsample_idxs.npy"), amrith_data_subsample_idxs)
-    
     train_questions+= list(train_questions_amrith[amrith_data_subsample_idxs])
     train_answers+= list(train_answers_amrith[amrith_data_subsample_idxs])
     
@@ -122,7 +118,7 @@ def make_supervised_data_module(output_dir, train_type, learning_rate, batch_siz
 def train():
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--train_type", type=str, default="batch_1_all")
+    parser.add_argument("--train_type", type=str, default="3copies")
     parser.add_argument("--learning_rate", type=float, default=2e-5)
     parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--epochs", type=int, default=3)
@@ -165,20 +161,20 @@ def train():
     if epochs <= 6:
         save_strategy = "epoch"
         save_steps = None 
-    # elif epochs <= 12:
-    #     # save every 2 epochs
-    #     save_strategy = "steps"
-    #     save_steps = 29
-    #     # save_steps = 7473 // batch_size * 2
+    elif epochs <= 12:
+        # save every 2 epochs
+        save_strategy = "steps"
+        save_steps = 29
+        # save_steps = 7473 // batch_size * 2
 
-    # elif epochs <= 24:
-    #     save_strategy = "steps"
-    #     save_steps = 29
-    #     # save_steps = 7473 // batch_size * 2
-    # else:
-    #     # save every 2 epochs
-    #     save_steps = 7473 // batch_size * 3
-    #     save_strategy = "steps"
+    elif epochs <= 24:
+        save_strategy = "steps"
+        save_steps = 29
+        # save_steps = 7473 // batch_size * 2
+    else:
+        # save every 2 epochs
+        save_steps = 7473 // batch_size * 3
+        save_strategy = "steps"
     
     output_dir = f"ckpts/{project_name}_{run_name}"
     

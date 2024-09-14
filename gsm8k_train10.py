@@ -28,26 +28,11 @@ def make_supervised_data_module(output_dir, train_type, learning_rate, batch_siz
     train_questions = list(train_questions_orig)
     train_answers = list(train_answers_orig)
     
-
+    
     with open('ckpts/amrith_gsm8k/gsm8k_batch_1_outputs_gpt4.jsonl', 'r') as json_file:
         json_list = list(json_file)
-
-    train_questions_amrith1 = []
-    train_answers_amrith1 = []
-    for json_str in json_list:
-        result = json.loads(json_str)
-        train_questions_amrith1.append(result["query"])
-        train_answers_amrith1.append(result["response"].replace("SOLUTION:\n", "").replace("\n\n", "\n"))
-
-    train_questions_amrith1 = np.array(train_questions_amrith1)
-    train_answers_amrith1 = np.array(train_answers_amrith1)
-    
-    train_questions+= list(train_questions_amrith1)
-    train_answers+= list(train_answers_amrith1)
-    
-
     with open('ckpts/amrith_gsm8k/gsm8k_batch_2_outputs_gpt4.jsonl', 'r') as json_file:
-        json_list = list(json_file)
+        json_list += list(json_file)
     with open('ckpts/amrith_gsm8k/gsm8k_batch_3_outputs_gpt4.jsonl', 'r') as json_file:
         json_list += list(json_file)
     with open('ckpts/amrith_gsm8k/gsm8k_batch_4_outputs_gpt4.jsonl', 'r') as json_file:
@@ -65,31 +50,62 @@ def make_supervised_data_module(output_dir, train_type, learning_rate, batch_siz
     
     num_repeats = len(train_questions_amrith)//len(train_questions_orig)
     assert(len(train_questions_amrith) == len(train_questions_orig)*num_repeats)
-    
     amrith_data_orig_idxs = np.tile(np.arange(len(train_questions_orig)), num_repeats)
     
+    if "0copies" in train_type:
+        prev_num_copies = 0
+        unmemorized_acc_cummax_all = np.load("ckpts/gsm8k_amrith_3epochs_0copies_lr2e-05_bs128/unmemorized_acc_cummax_all.npy")[-1]
+    elif "1copies" in train_type:
+        prev_num_copies = 1
+        unmemorized_acc_cummax_all = np.load("ckpts/gsm8k_amrith_3epochs_1copies_lr2e-05_bs128/unmemorized_acc_cummax_all.npy")[-1]
+    elif "3copies" in train_type:
+        prev_num_copies = 3
+        unmemorized_acc_cummax_all = np.load("ckpts/gsm8k_amrith_3epochs_3copies_lr2e-05_bs128/unmemorized_acc_cummax_all.npy")[-1]
+    elif "7copies" in train_type:
+        prev_num_copies = 7
+        unmemorized_acc_cummax_all = np.load("ckpts/gsm8k_amrith_3epochs_7copies_lr2e-05_bs128/unmemorized_acc_cummax_all.npy")[-1]
+    elif "15copies" in train_type:
+        prev_num_copies = 15
+        unmemorized_acc_cummax_all = np.load("ckpts/gsm8k_amrith_3epochs_15copies_lr2e-05_bs128/unmemorized_acc_cummax_all.npy")[-1]
+    else:
+        raise Exception("Invalid train type")
     
-    orig_data_unmemorized_acc = np.load("ckpts/gsm8k_amrith_3epochs_batch_1_all_lr2e-05_bs128/checkpoint-1224/unmemorized_acc_cummax_all.npy")
     
-    # orig_data_unmemorized_acc = np.load("gsm8k_unmemorized_acc_cummax_all.npy")
-    
-    
-    # if train_type =="batch_1_threshold0.125":
-    #     orig_data_subsample_idxs = np.where(orig_data_unmemorized_acc<=0.125)[0]
-    if train_type =="batch_1_threshold0.25":
-        orig_data_subsample_idxs = np.where(orig_data_unmemorized_acc<=0.25)[0]
-    elif train_type =="batch_1_threshold0.5":
-        orig_data_subsample_idxs = np.where(orig_data_unmemorized_acc<=0.5)[0]
-    elif train_type =="batch_1_threshold0.75":
-        orig_data_subsample_idxs = np.where(orig_data_unmemorized_acc<=0.75)[0]
-    elif train_type =="batch_1_threshold1":
-        orig_data_subsample_idxs = np.where(orig_data_unmemorized_acc<=1)[0]
+    if "threshold0.5" in train_type:
+        threshold = 0.5
+    elif "threshold0.75" in train_type:
+        threshold = 0.75
     else:
         raise Exception("Invalid train type")
 
+    
+    if "1newcopies" in train_type:
+        new_num_copies = 1
+    elif "0.5newcopies" in train_type:
+        new_num_copies = 0.5
+    elif "2newcopies" in train_type:
+        new_num_copies = 2
+    elif "4newcopies" in train_type:
+        new_num_copies = 4
+    elif "6newcopies" in train_type:
+        new_num_copies = 6
+    elif "10newcopies" in train_type:
+        new_num_copies = 10
+
     if dist.get_rank() == 0:
-        amrith_data_subsample_idxs = np.where([elem in orig_data_subsample_idxs for elem in amrith_data_orig_idxs])[0]
-        amrith_data_subsample_idxs = np.random.choice(amrith_data_subsample_idxs, 24000, replace=False)
+        amrith_data_subsample_idxs_prev = np.arange(len(train_questions_orig)*prev_num_copies)
+        
+        
+        amrith_data_orig_idxs[amrith_data_subsample_idxs_prev] = -1
+        orig_data_subsample_idxs = np.where(unmemorized_acc_cummax_all<=threshold)[0]
+        amrith_data_subsample_idxs_new = np.where([elem in orig_data_subsample_idxs for elem in amrith_data_orig_idxs])[0]
+        amrith_data_subsample_idxs_new = np.random.choice(amrith_data_subsample_idxs_new, int(len(train_questions_orig)*new_num_copies), replace=False)
+        
+        
+        amrith_data_subsample_idxs = np.concatenate([amrith_data_subsample_idxs_prev, amrith_data_subsample_idxs_new])
+        assert(len(set(amrith_data_subsample_idxs))==int(len(train_questions_orig)*new_num_copies)+prev_num_copies*len(train_questions_orig))
+        
+        
         
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
@@ -100,14 +116,6 @@ def make_supervised_data_module(output_dir, train_type, learning_rate, batch_siz
         amrith_data_subsample_idxs = np.load(os.path.join(output_dir, f"amrith_data_subsample_idxs.npy"))
     print(amrith_data_subsample_idxs)
 
-    # amrith_data_subsample_idxs = np.where([elem in orig_data_subsample_idxs for elem in amrith_data_orig_idxs])[0]
-    # amrith_data_subsample_idxs = np.random.choice(amrith_data_subsample_idxs, 28000, replace=False)
-    
-    # if not os.path.exists(output_dir):
-    #     os.makedirs(output_dir)
-    
-    # np.save(os.path.join(output_dir, "amrith_data_subsample_idxs.npy"), amrith_data_subsample_idxs)
-    
     train_questions+= list(train_questions_amrith[amrith_data_subsample_idxs])
     train_answers+= list(train_answers_amrith[amrith_data_subsample_idxs])
     
@@ -127,7 +135,7 @@ def train():
     parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--epochs", type=int, default=3)
     parser.add_argument("--model", type=str, default="meta-llama/Meta-Llama-3-8B")
-
+    parser.add_argument("--dont_save_intermediate", action='store_true')
 
     args = parser.parse_args()
     train_type = args.train_type
@@ -135,6 +143,7 @@ def train():
     epochs = args.epochs
     batch_size = args.batch_size
     model_name_or_path = args.model
+    save_intermediate = not args.dont_save_intermediate
     
     
     project_name = "gsm8k_amrith"
@@ -157,30 +166,13 @@ def train():
     print("Grad accum steps: ", gradient_accumulation_steps)
 
     assert(gradient_accumulation_steps*per_device_batch_size*num_devices==batch_size)
-
-    # save_steps = 7473 // batch_size * 27
-    
-    # save_strategy = "steps"
-    
-    if epochs <= 6:
-        save_strategy = "epoch"
-        save_steps = None 
-    # elif epochs <= 12:
-    #     # save every 2 epochs
-    #     save_strategy = "steps"
-    #     save_steps = 29
-    #     # save_steps = 7473 // batch_size * 2
-
-    # elif epochs <= 24:
-    #     save_strategy = "steps"
-    #     save_steps = 29
-    #     # save_steps = 7473 // batch_size * 2
-    # else:
-    #     # save every 2 epochs
-    #     save_steps = 7473 // batch_size * 3
-    #     save_strategy = "steps"
     
     output_dir = f"ckpts/{project_name}_{run_name}"
+    
+    if save_intermediate:
+        save_strategy = "epoch"
+    else:
+        save_strategy = "no"
     
 
     training_args = TrainingArguments(
@@ -200,7 +192,6 @@ def train():
         logging_strategy = "steps",
         logging_steps = 25,
         save_strategy = save_strategy,
-        save_steps=save_steps,
         save_only_model = True,
         run_name=run_name,
         bf16 = True,
@@ -244,9 +235,10 @@ def train():
     trainer = Trainer(model=model, tokenizer=tokenizer, args=training_args, **data_module)
     trainer.train()
     
-    # trainer.save_state()
-    # trainer.save_model(output_dir=output_dir)
-
+    
+    if not save_intermediate:
+        trainer.save_state()
+        trainer.save_model(output_dir=output_dir)
 
 if __name__ == "__main__":
     train()

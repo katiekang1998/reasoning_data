@@ -28,26 +28,11 @@ def make_supervised_data_module(output_dir, train_type, learning_rate, batch_siz
     train_questions = list(train_questions_orig)
     train_answers = list(train_answers_orig)
     
-
+    
     with open('ckpts/amrith_gsm8k/gsm8k_batch_1_outputs_gpt4.jsonl', 'r') as json_file:
         json_list = list(json_file)
-
-    train_questions_amrith1 = []
-    train_answers_amrith1 = []
-    for json_str in json_list:
-        result = json.loads(json_str)
-        train_questions_amrith1.append(result["query"])
-        train_answers_amrith1.append(result["response"].replace("SOLUTION:\n", "").replace("\n\n", "\n"))
-
-    train_questions_amrith1 = np.array(train_questions_amrith1)
-    train_answers_amrith1 = np.array(train_answers_amrith1)
-    
-    train_questions+= list(train_questions_amrith1)
-    train_answers+= list(train_answers_amrith1)
-    
-
     with open('ckpts/amrith_gsm8k/gsm8k_batch_2_outputs_gpt4.jsonl', 'r') as json_file:
-        json_list = list(json_file)
+        json_list += list(json_file)
     with open('ckpts/amrith_gsm8k/gsm8k_batch_3_outputs_gpt4.jsonl', 'r') as json_file:
         json_list += list(json_file)
     with open('ckpts/amrith_gsm8k/gsm8k_batch_4_outputs_gpt4.jsonl', 'r') as json_file:
@@ -63,33 +48,22 @@ def make_supervised_data_module(output_dir, train_type, learning_rate, batch_siz
     train_questions_amrith = np.array(train_questions_amrith)
     train_answers_amrith = np.array(train_answers_amrith)
     
-    num_repeats = len(train_questions_amrith)//len(train_questions_orig)
-    assert(len(train_questions_amrith) == len(train_questions_orig)*num_repeats)
-    
-    amrith_data_orig_idxs = np.tile(np.arange(len(train_questions_orig)), num_repeats)
-    
-    
-    orig_data_unmemorized_acc = np.load("ckpts/gsm8k_amrith_3epochs_batch_1_all_lr2e-05_bs128/checkpoint-1224/unmemorized_acc_cummax_all.npy")
-    
-    # orig_data_unmemorized_acc = np.load("gsm8k_unmemorized_acc_cummax_all.npy")
-    
-    
-    # if train_type =="batch_1_threshold0.125":
-    #     orig_data_subsample_idxs = np.where(orig_data_unmemorized_acc<=0.125)[0]
-    if train_type =="batch_1_threshold0.25":
-        orig_data_subsample_idxs = np.where(orig_data_unmemorized_acc<=0.25)[0]
-    elif train_type =="batch_1_threshold0.5":
-        orig_data_subsample_idxs = np.where(orig_data_unmemorized_acc<=0.5)[0]
-    elif train_type =="batch_1_threshold0.75":
-        orig_data_subsample_idxs = np.where(orig_data_unmemorized_acc<=0.75)[0]
-    elif train_type =="batch_1_threshold1":
-        orig_data_subsample_idxs = np.where(orig_data_unmemorized_acc<=1)[0]
+    if train_type =="0copies":
+        num_copies = 0
+    elif train_type =="1copies":
+        num_copies = 1
+    elif train_type =="3copies":
+        num_copies = 3
+    elif train_type =="7copies":
+        num_copies = 7
+    elif train_type =="15copies":
+        num_copies = 15
     else:
         raise Exception("Invalid train type")
 
     if dist.get_rank() == 0:
-        amrith_data_subsample_idxs = np.where([elem in orig_data_subsample_idxs for elem in amrith_data_orig_idxs])[0]
-        amrith_data_subsample_idxs = np.random.choice(amrith_data_subsample_idxs, 24000, replace=False)
+        amrith_data_subsample_idxs = np.arange(len(train_questions_orig)*num_copies)
+        
         
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
@@ -100,14 +74,6 @@ def make_supervised_data_module(output_dir, train_type, learning_rate, batch_siz
         amrith_data_subsample_idxs = np.load(os.path.join(output_dir, f"amrith_data_subsample_idxs.npy"))
     print(amrith_data_subsample_idxs)
 
-    # amrith_data_subsample_idxs = np.where([elem in orig_data_subsample_idxs for elem in amrith_data_orig_idxs])[0]
-    # amrith_data_subsample_idxs = np.random.choice(amrith_data_subsample_idxs, 28000, replace=False)
-    
-    # if not os.path.exists(output_dir):
-    #     os.makedirs(output_dir)
-    
-    # np.save(os.path.join(output_dir, "amrith_data_subsample_idxs.npy"), amrith_data_subsample_idxs)
-    
     train_questions+= list(train_questions_amrith[amrith_data_subsample_idxs])
     train_answers+= list(train_answers_amrith[amrith_data_subsample_idxs])
     
@@ -157,28 +123,6 @@ def train():
     print("Grad accum steps: ", gradient_accumulation_steps)
 
     assert(gradient_accumulation_steps*per_device_batch_size*num_devices==batch_size)
-
-    # save_steps = 7473 // batch_size * 27
-    
-    # save_strategy = "steps"
-    
-    if epochs <= 6:
-        save_strategy = "epoch"
-        save_steps = None 
-    # elif epochs <= 12:
-    #     # save every 2 epochs
-    #     save_strategy = "steps"
-    #     save_steps = 29
-    #     # save_steps = 7473 // batch_size * 2
-
-    # elif epochs <= 24:
-    #     save_strategy = "steps"
-    #     save_steps = 29
-    #     # save_steps = 7473 // batch_size * 2
-    # else:
-    #     # save every 2 epochs
-    #     save_steps = 7473 // batch_size * 3
-    #     save_strategy = "steps"
     
     output_dir = f"ckpts/{project_name}_{run_name}"
     
@@ -199,8 +143,7 @@ def train():
         report_to = "none",
         logging_strategy = "steps",
         logging_steps = 25,
-        save_strategy = save_strategy,
-        save_steps=save_steps,
+        save_strategy = "epoch",
         save_only_model = True,
         run_name=run_name,
         bf16 = True,
@@ -244,8 +187,6 @@ def train():
     trainer = Trainer(model=model, tokenizer=tokenizer, args=training_args, **data_module)
     trainer.train()
     
-    # trainer.save_state()
-    # trainer.save_model(output_dir=output_dir)
 
 
 if __name__ == "__main__":
