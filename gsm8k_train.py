@@ -19,7 +19,7 @@ from torch.utils.data import DataLoader
 from transformers.utils import is_datasets_available
 import datasets
 from transformers.trainer_utils import seed_worker
-
+import torch.distributed as dist
 
 class CustomTrainer(Trainer):
     # def get_train_dataloader(self):
@@ -88,32 +88,61 @@ def make_supervised_data_module(output_dir, train_type, tokenizer: transformers.
         subsample_idxs = np.arange(len(train_questions_orig))
     elif train_type == "half":
         subsample_idxs= np.arange(len(train_questions_orig))
-        subsample_idxs = np.random.choice(subsample_idxs, len(subsample_idxs)//2, replace=False)
+        if dist.get_rank() == 0:
+            subsample_idxs = np.random.choice(subsample_idxs, len(subsample_idxs)//2, replace=False)
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+            np.save(os.path.join(output_dir, "subsample_idxs.npy"), subsample_idxs)
+            dist.barrier()
+        else:
+            dist.barrier()
+            subsample_idxs = np.load(os.path.join(output_dir, f"subsample_idxs.npy"))
+        
     elif train_type == "quarter":
         subsample_idxs= np.arange(len(train_questions_orig))
-        subsample_idxs = np.random.choice(subsample_idxs, len(subsample_idxs)//4, replace=False)
+        if dist.get_rank() == 0:
+            subsample_idxs = np.random.choice(subsample_idxs, len(subsample_idxs)//4, replace=False)
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+            np.save(os.path.join(output_dir, "subsample_idxs.npy"), subsample_idxs)
+            dist.barrier()
+        else:
+            dist.barrier()
+            subsample_idxs = np.load(os.path.join(output_dir, f"subsample_idxs.npy"))
+            
+        # subsample_idxs = np.random.choice(subsample_idxs, len(subsample_idxs)//4, replace=False)
     elif train_type == "eighth":
         subsample_idxs= np.arange(len(train_questions_orig))
-        subsample_idxs = np.random.choice(subsample_idxs, len(subsample_idxs)//8, replace=False)
+        if dist.get_rank() == 0:
+            subsample_idxs = np.random.choice(subsample_idxs, len(subsample_idxs)//8, replace=False)
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+            np.save(os.path.join(output_dir, "subsample_idxs.npy"), subsample_idxs)
+            dist.barrier()
+        else:
+            dist.barrier()
+            subsample_idxs = np.load(os.path.join(output_dir, f"subsample_idxs.npy"))
+            
+        # subsample_idxs = np.random.choice(subsample_idxs, len(subsample_idxs)//8, replace=False)
     else:
         1/0
     
-    # np.random.shuffle(subsample_idxs)
+    # # np.random.shuffle(subsample_idxs)
     
-    if train_type == "shuffle_custom":
-        print("shuffle custom")
-        unmemorized_acc_cummax_all = []
-        for shuffle_idx in range(6):
-            unmemorized_acc_cummax_all_idx = np.load(f"ckpts/gsm8k_orig_3epochs_shuffle{shuffle_idx+1}_lr2e-05_bs128/unmemorized_acc_cummax_all.npy").max(axis=0)
-            unmemorized_acc_cummax_all.append(unmemorized_acc_cummax_all_idx)
-        unmemorized_acc_cummax_all = np.mean(unmemorized_acc_cummax_all, axis=0)
-        subsample_idxs = np.argsort(unmemorized_acc_cummax_all) #lowest to highest
-        subsample_idxs = np.flip(subsample_idxs)
+    # if train_type == "shuffle_custom":
+    #     print("shuffle custom")
+    #     unmemorized_acc_cummax_all = []
+    #     for shuffle_idx in range(6):
+    #         unmemorized_acc_cummax_all_idx = np.load(f"ckpts/gsm8k_orig_3epochs_shuffle{shuffle_idx+1}_lr2e-05_bs128/unmemorized_acc_cummax_all.npy").max(axis=0)
+    #         unmemorized_acc_cummax_all.append(unmemorized_acc_cummax_all_idx)
+    #     unmemorized_acc_cummax_all = np.mean(unmemorized_acc_cummax_all, axis=0)
+    #     subsample_idxs = np.argsort(unmemorized_acc_cummax_all) #lowest to highest
+    #     subsample_idxs = np.flip(subsample_idxs)
     
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    # if not os.path.exists(output_dir):
+    #     os.makedirs(output_dir)
     
-    np.save(os.path.join(output_dir, "subsample_idxs.npy"), subsample_idxs)
+    # np.save(os.path.join(output_dir, "subsample_idxs.npy"), subsample_idxs)
     
     train_dataset = SupervisedDataset(train_questions_orig[subsample_idxs], train_answers_orig[subsample_idxs], tokenizer=tokenizer)
     

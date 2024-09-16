@@ -1,10 +1,57 @@
 
 
-# RUN_NAME=gsm8k_amrith_3epochs_3copies_lr2e-05_bs128
-CUDA_VISIBLE_DEVICES=0 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_amrith_3epochs_1copies_threshold0.75_1newcopies_lr2e-05_bs128 --eval_type test --num_samples 5 &
-CUDA_VISIBLE_DEVICES=1 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_amrith_3epochs_3copies_threshold0.75_4newcopies_lr2e-05_bs128/checkpoint-1401 --eval_type test --num_samples 5 &
+torchrun --nproc_per_node=4 --master_port=1234 gsm8k_train.py --train_type half --epochs 6 --learning_rate 2e-5
+RUN_NAME=gsm8k_orig_6epochs_half_lr2e-05_bs128
 
+CUDA_VISIBLE_DEVICES=0 python gsm8k_eval.py --ckpt_dir ckpts/$RUN_NAME/checkpoint-116 --eval_type train --num_samples 5 &
+CUDA_VISIBLE_DEVICES=1 python gsm8k_eval.py --ckpt_dir ckpts/$RUN_NAME/checkpoint-145 --eval_type train --num_samples 5 &
+CUDA_VISIBLE_DEVICES=2 python gsm8k_eval.py --ckpt_dir ckpts/$RUN_NAME/checkpoint-174 --eval_type train --num_samples 5 &
 wait
+
+
+# for CKPT_DIR in ckpts/$RUN_NAME/checkpoint-*/
+# do
+#     # Extract the checkpoint number from the folder name
+#     CKPT=$(basename $CKPT_DIR | sed 's/checkpoint-//')
+#     echo $CKPT
+#     # CUDA_VISIBLE_DEVICES=0 python gsm8k_eval_perplexity.py --ckpt_dir $RUN_NAME --ckpt $CKPT &
+#     # CUDA_VISIBLE_DEVICES=1 python gsm8k_eval.py --ckpt_dir ckpts/$RUN_NAME/checkpoint-$CKPT --eval_type test --num_samples 5 &
+#     CUDA_VISIBLE_DEVICES=2 python gsm8k_eval.py --ckpt_dir ckpts/$RUN_NAME/checkpoint-$CKPT --eval_type train --num_samples 5
+#     # wait
+# done
+
+# torchrun --nproc_per_node=4 --master_port=1234 gsm8k_train.py --train_type quarter --epochs 12 --learning_rate 2e-5
+# RUN_NAME=gsm8k_orig_12epochs_quarter_lr2e-05_bs128
+# for CKPT_DIR in ckpts/$RUN_NAME/checkpoint-*/
+# do
+#     # Extract the checkpoint number from the folder name
+#     CKPT=$(basename $CKPT_DIR | sed 's/checkpoint-//')
+#     echo $CKPT
+#     # CUDA_VISIBLE_DEVICES=0 python gsm8k_eval_perplexity.py --ckpt_dir $RUN_NAME --ckpt $CKPT &
+#     # CUDA_VISIBLE_DEVICES=1 python gsm8k_eval.py --ckpt_dir ckpts/$RUN_NAME/checkpoint-$CKPT --eval_type test --num_samples 5 &
+#     CUDA_VISIBLE_DEVICES=2 python gsm8k_eval.py --ckpt_dir ckpts/$RUN_NAME/checkpoint-$CKPT --eval_type train --num_samples 5
+#     # wait
+# done
+
+# torchrun --nproc_per_node=4 --master_port=1234 gsm8k_train.py --train_type eighth --epochs 24 --learning_rate 2e-5
+# RUN_NAME=gsm8k_orig_24epochs_eighth_lr2e-05_bs128
+# for CKPT_DIR in ckpts/$RUN_NAME/checkpoint-*/
+# do
+#     # Extract the checkpoint number from the folder name
+#     CKPT=$(basename $CKPT_DIR | sed 's/checkpoint-//')
+#     echo $CKPT
+#     # CUDA_VISIBLE_DEVICES=0 python gsm8k_eval_perplexity.py --ckpt_dir $RUN_NAME --ckpt $CKPT &
+#     # CUDA_VISIBLE_DEVICES=1 python gsm8k_eval.py --ckpt_dir ckpts/$RUN_NAME/checkpoint-$CKPT --eval_type test --num_samples 5 &
+#     CUDA_VISIBLE_DEVICES=2 python gsm8k_eval.py --ckpt_dir ckpts/$RUN_NAME/checkpoint-$CKPT --eval_type train --num_samples 5
+#     # wait
+# done
+
+
+# RUN_NAME=gsm8k_amrith_3epochs_3copies_lr2e-05_bs128
+# CUDA_VISIBLE_DEVICES=0 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_amrith_3epochs_1copies_threshold0.75_1newcopies_lr2e-05_bs128 --eval_type test --num_samples 5 &
+# CUDA_VISIBLE_DEVICES=1 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_amrith_3epochs_3copies_threshold0.75_4newcopies_lr2e-05_bs128/checkpoint-1401 --eval_type test --num_samples 5 &
+
+# wait
 
 
 # CUDA_VISIBLE_DEVICES=2 python gsm8k_eval.py --ckpt_dir ckpts/gsm8k_amrith_3epochs_7copies_threshold0.75_4newcopies_lr2e-05_bs128/checkpoint-2100 --eval_type test --num_samples 20 &
@@ -26,8 +73,8 @@ wait
 
 
 
-# torchrun --nproc_per_node=4 --master_port=1234 gsm8k_train9.py --train_type 0copies
-# RUN_NAME=gsm8k_amrith_3epochs_0copies_lr2e-05_bs128
+# torchrun --nproc_per_node=4 --master_port=1234 gsm8k_train9.py --train_type 15copies
+# RUN_NAME=gsm8k_amrith_3epochs_15copies_lr2e-05_bs128
 # for CKPT_DIR in ckpts/$RUN_NAME/checkpoint-*/
 # do
 #     # Extract the checkpoint number from the folder name

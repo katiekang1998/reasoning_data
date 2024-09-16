@@ -52,34 +52,18 @@ def make_supervised_data_module(output_dir, train_type, learning_rate, batch_siz
     assert(len(train_questions_amrith) == len(train_questions_orig)*num_repeats)
     amrith_data_orig_idxs = np.tile(np.arange(len(train_questions_orig)), num_repeats)
     
-    if "0copies" in train_type:
-        prev_num_copies = 0
-        unmemorized_acc_cummax_all = np.load("ckpts/gsm8k_amrith_3epochs_0copies_lr2e-05_bs128/unmemorized_acc_cummax_all.npy")[-1]
-    elif "1copies" in train_type:
-        prev_num_copies = 1
-        unmemorized_acc_cummax_all = np.load("ckpts/gsm8k_amrith_3epochs_1copies_lr2e-05_bs128/unmemorized_acc_cummax_all.npy")[-1]
-    elif "3copies" in train_type:
-        prev_num_copies = 3
-        unmemorized_acc_cummax_all = np.load("ckpts/gsm8k_amrith_3epochs_3copies_lr2e-05_bs128/unmemorized_acc_cummax_all.npy")[-1]
-    elif "7copies" in train_type:
-        prev_num_copies = 7
-        unmemorized_acc_cummax_all = np.load("ckpts/gsm8k_amrith_3epochs_7copies_lr2e-05_bs128/unmemorized_acc_cummax_all.npy")[-1]
-    elif "15copies" in train_type:
-        prev_num_copies = 15
-        unmemorized_acc_cummax_all = np.load("ckpts/gsm8k_amrith_3epochs_15copies_lr2e-05_bs128/unmemorized_acc_cummax_all.npy")[-1]
-    else:
-        raise Exception("Invalid train type")
+    
+    begin_idx = train_type.index("prev[")
+    end_idx = train_type.index("]")
+    prev_train_type = train_type[begin_idx+len("prev["): end_idx]
+    prev_idxs =  np.load(f"ckpts/gsm8k_amrith_3epochs_{prev_train_type}_lr2e-05_bs128/amrith_data_subsample_idxs.npy")
+    unmemorized_acc_cummax_all = np.load(f"ckpts/gsm8k_amrith_3epochs_{prev_train_type}_lr2e-05_bs128/unmemorized_acc_cummax_all.npy")[-1]
     
     
-    if "threshold0.5" in train_type:
-        threshold = 0.5
-    elif "threshold0.75" in train_type:
-        threshold = 0.75
-    else:
-        raise Exception("Invalid train type")
+    threshold = 0.75
 
     
-    if "1newcopies" in train_type:
+    if "1newnewcopies" in train_type:
         new_num_copies = 1
     elif "0.5newcopies" in train_type:
         new_num_copies = 0.5
@@ -95,7 +79,7 @@ def make_supervised_data_module(output_dir, train_type, learning_rate, batch_siz
         new_num_copies = 10
 
     if dist.get_rank() == 0:
-        amrith_data_subsample_idxs_prev = np.arange(len(train_questions_orig)*prev_num_copies)
+        amrith_data_subsample_idxs_prev = prev_idxs
         
         
         amrith_data_orig_idxs[amrith_data_subsample_idxs_prev] = -1
@@ -106,7 +90,6 @@ def make_supervised_data_module(output_dir, train_type, learning_rate, batch_siz
         
         amrith_data_subsample_idxs = np.concatenate([amrith_data_subsample_idxs_prev, amrith_data_subsample_idxs_new])
         assert(len(set(amrith_data_subsample_idxs))==int(len(train_questions_orig)*new_num_copies)+prev_num_copies*len(train_questions_orig))
-        
         
         
         if not os.path.exists(output_dir):
