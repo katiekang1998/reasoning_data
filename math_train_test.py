@@ -23,61 +23,22 @@ def make_supervised_data_module(train_type, output_dir, tokenizer: transformers.
 
     dataset = load_dataset("hendrycks/competition_math", cache_dir=cache_dir, trust_remote_code=True)
     
-    train_questions = np.array(dataset["train"]["problem"])
-    train_answers = np.array(dataset["train"]['solution'])
+    test_questions = np.array(dataset["test"]["problem"])
+    test_answers = np.array(dataset["test"]['solution'])
     
-    if train_type == "full" or train_type == "full2":
-        subsample_idxs = np.arange(len(train_questions))
-    elif train_type == "subsample_unmemorized":
-        subsample_idxs = np.where(np.load("ckpts/math_orig_6epochs_full_lr5e-07_bs128/unmemorized_acc_cummax_full.npy").max(axis=0)> 0)[0]
-    elif train_type == "subsample_memorized":
-       unmemorized_acc_cummax_all = np.load("ckpts/math_orig_6epochs_full_lr5e-07_bs128/unmemorized_acc_cummax_full.npy").max(axis=0)
-       num_subsample_idxs = len(np.where(unmemorized_acc_cummax_all>0)[0])
-       sorted_idxs = np.argsort(unmemorized_acc_cummax_all) #lowest to highest
-       subsample_idxs = sorted_idxs[:num_subsample_idxs]
-    # elif train_type == "subsample_random":
-    #     subsample_idxs_len = len(np.where(np.load("ckpts/math_orig_6epochs_full_lr5e-07_bs128/unmemorized_acc_cummax_full.npy").max(axis=0)> 0)[0])
-    #     subsample_idxs = np.random.choice(np.arange(len(train_questions)), subsample_idxs_len, replace = False)
-    else:
-        if dist.get_rank() == 0:
-            if train_type == "half":
-                subsample_idxs = np.arange(len(train_questions))
-                subsample_idxs = np.random.choice(subsample_idxs, (len(train_questions)+1)//2, replace=False)
-            elif train_type == "quarter":
-                subsample_idxs = np.arange(len(train_questions))
-                subsample_idxs = np.random.choice(subsample_idxs, (len(train_questions)+1)//4, replace=False)
-            elif train_type == "eighth":
-                subsample_idxs = np.arange(len(train_questions))
-                subsample_idxs = np.random.choice(subsample_idxs, (len(train_questions)+1)//8, replace=False)
-
-            np.random.shuffle(subsample_idxs)
-            
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
-            
-            np.save(os.path.join(output_dir, f"subsample_idxs.npy"), subsample_idxs)
-            dist.barrier()
-        else:
-            dist.barrier()
-            subsample_idxs = np.load(os.path.join(output_dir, f"subsample_idxs.npy"))
-    print(subsample_idxs)
-                                
-    train_questions  = train_questions[subsample_idxs]
-    train_answers = train_answers[subsample_idxs]
-
-    train_dataset = SupervisedDataset(train_questions, train_answers, tokenizer=tokenizer)
+    train_dataset = SupervisedDataset(test_questions, test_answers, tokenizer=tokenizer)
     
     data_collator = DataCollatorForSupervisedDataset(tokenizer=tokenizer)
     return dict(train_dataset=train_dataset, data_collator=data_collator)
 
 def train():
-    model_name_or_path="meta-llama/Meta-Llama-3-8B"
+    model_name_or_path="deepseek-ai/deepseek-math-7b-base"
 
     parser = argparse.ArgumentParser()
     
-    parser.add_argument("--train_type", type=str, default="full2")
+    parser.add_argument("--train_type", type=str, default="test")
     parser.add_argument("--learning_rate", type=float, default=2e-5)
-    parser.add_argument("--batch_size", type=int, default=24)
+    parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--epochs", type=int, default=3)
     parser.add_argument("--dont_save_intermediate", action='store_true')
 
@@ -105,16 +66,14 @@ def train():
     assert(gradient_accumulation_steps*per_device_batch_size*num_devices==batch_size)
 
     if save_intermediate:
-        # if num_epochs <= 3:
-        #     save_strategy = "epoch"
-        #     save_steps = None 
-        # else:
-        #     # save every 2 epochs
-        #     save_strategy = "steps"
-        #     save_steps = 156
-        #     # save_steps = 7473 // batch_size * 2
-        save_strategy = "epoch"
-        save_steps = None 
+        if num_epochs <= 3:
+            save_strategy = "epoch"
+            save_steps = None 
+        else:
+            # save every 2 epochs
+            save_strategy = "steps"
+            save_steps = 156
+            # save_steps = 7473 // batch_size * 2
     else:
         save_strategy = "no"
         save_steps = None
@@ -122,9 +81,9 @@ def train():
     output_dir = f"ckpts/{project_name}_{run_name}"
     training_args = TrainingArguments(
         num_train_epochs = num_epochs, 
-        per_device_train_batch_size = 1,
-        per_device_eval_batch_size = 1,
-        gradient_accumulation_steps = 6,
+        per_device_train_batch_size = per_device_batch_size,
+        per_device_eval_batch_size = per_device_batch_size,
+        gradient_accumulation_steps = gradient_accumulation_steps,
         lr_scheduler_type = "linear",
         warmup_steps = 20,
         learning_rate = learning_rate,

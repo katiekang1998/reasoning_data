@@ -35,15 +35,11 @@ model.eval()
 
 def calculate_output_perplexity(input_text, output_text, model, tokenizer):
     # Combine input and output text
-    full_text = input_text + output_text
+    full_text = output_text
 
     # Tokenize input and output
     inputs = tokenizer(full_text, return_tensors='pt').to('cuda')
     input_ids = inputs.input_ids
-
-    # Get the index where the output text starts
-    input_length = len(tokenizer.encode(input_text, add_special_tokens=False))
-    output_length = len(tokenizer.encode(output_text, add_special_tokens=False))
     
     with torch.no_grad():
         # Get model outputs (logits)
@@ -51,8 +47,8 @@ def calculate_output_perplexity(input_text, output_text, model, tokenizer):
         logits = outputs.logits
 
     # Shift logits and labels to focus only on the output text portion
-    shift_logits = logits[:, input_length:-1, :].contiguous()
-    shift_labels = input_ids[:, input_length + 1:].contiguous()
+    shift_logits = logits[:, :-1, :].contiguous()
+    shift_labels = input_ids[:, 1:].contiguous()
 
     # Calculate the cross-entropy loss between predicted logits and actual tokens
     loss_fct = torch.nn.CrossEntropyLoss(reduction='none')
@@ -110,5 +106,5 @@ for i in tqdm.tqdm(range(len(eval_questions))):
     perplexities.append(perplexity)
     num_tokens_all.append(num_tokens)
 
-np.save(model_name+"/train_perplexities.npy", perplexities)
-np.save(model_name+"/train_num_tokens.npy", num_tokens_all)
+np.save(model_name+"/train_output_perplexities.npy", perplexities)
+np.save(model_name+"/train_output_num_tokens.npy", num_tokens_all)

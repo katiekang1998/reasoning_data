@@ -75,86 +75,20 @@ class CustomTrainer(Trainer):
 def make_supervised_data_module(output_dir, train_type, tokenizer: transformers.PreTrainedTokenizer) -> Dict:
 
     dataset = load_dataset("gsm8k", "main", cache_dir=cache_dir)
-    train_questions_orig = np.array(dataset["train"]["question"])
-    train_answers_orig = np.array(dataset["train"]['answer'])
-    # test_questions_orig = np.array(dataset["test"]["question"])
-    # test_answers_orig = np.array(dataset["test"]['answer'])
+    test_questions = np.array(dataset["test"]["question"])
+    test_questions = np.array(dataset["test"]['answer'])
     
-    # if train_type == "memorized":
-    #     subsample_idxs = np.load("ckpts/gsm8k_orig_6epochs/memorized_subsample_idxs.npy")
-    if train_type == "unmemorized_gt_1":
-        subsample_idxs = np.load("gsm8k_unmemorized_idxs>1.npy")
-    elif (train_type == "full" or train_type == "full2" or "shuffle" in train_type):
-        subsample_idxs = np.arange(len(train_questions_orig))
-    elif train_type == "half":
-        subsample_idxs= np.arange(len(train_questions_orig))
-        if dist.get_rank() == 0:
-            subsample_idxs = np.random.choice(subsample_idxs, len(subsample_idxs)//2, replace=False)
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
-            np.save(os.path.join(output_dir, "subsample_idxs.npy"), subsample_idxs)
-            dist.barrier()
-        else:
-            dist.barrier()
-            subsample_idxs = np.load(os.path.join(output_dir, f"subsample_idxs.npy"))
-        
-    elif train_type == "quarter":
-        subsample_idxs= np.arange(len(train_questions_orig))
-        if dist.get_rank() == 0:
-            subsample_idxs = np.random.choice(subsample_idxs, len(subsample_idxs)//4, replace=False)
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
-            np.save(os.path.join(output_dir, "subsample_idxs.npy"), subsample_idxs)
-            dist.barrier()
-        else:
-            dist.barrier()
-            subsample_idxs = np.load(os.path.join(output_dir, f"subsample_idxs.npy"))
-            
-        # subsample_idxs = np.random.choice(subsample_idxs, len(subsample_idxs)//4, replace=False)
-    elif train_type == "eighth":
-        subsample_idxs= np.arange(len(train_questions_orig))
-        if dist.get_rank() == 0:
-            subsample_idxs = np.random.choice(subsample_idxs, len(subsample_idxs)//8, replace=False)
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
-            np.save(os.path.join(output_dir, "subsample_idxs.npy"), subsample_idxs)
-            dist.barrier()
-        else:
-            dist.barrier()
-            subsample_idxs = np.load(os.path.join(output_dir, f"subsample_idxs.npy"))
-            
-        # subsample_idxs = np.random.choice(subsample_idxs, len(subsample_idxs)//8, replace=False)
-    else:
-        1/0
-    
-    # # np.random.shuffle(subsample_idxs)
-    
-    # if train_type == "shuffle_custom":
-    #     print("shuffle custom")
-    #     unmemorized_acc_cummax_all = []
-    #     for shuffle_idx in range(6):
-    #         unmemorized_acc_cummax_all_idx = np.load(f"ckpts/gsm8k_orig_3epochs_shuffle{shuffle_idx+1}_lr2e-05_bs128/unmemorized_acc_cummax_all.npy").max(axis=0)
-    #         unmemorized_acc_cummax_all.append(unmemorized_acc_cummax_all_idx)
-    #     unmemorized_acc_cummax_all = np.mean(unmemorized_acc_cummax_all, axis=0)
-    #     subsample_idxs = np.argsort(unmemorized_acc_cummax_all) #lowest to highest
-    #     subsample_idxs = np.flip(subsample_idxs)
-    
-    # if not os.path.exists(output_dir):
-    #     os.makedirs(output_dir)
-    
-    # np.save(os.path.join(output_dir, "subsample_idxs.npy"), subsample_idxs)
-    
-    train_dataset = SupervisedDataset(train_questions_orig[subsample_idxs], train_answers_orig[subsample_idxs], tokenizer=tokenizer)
+    train_dataset = SupervisedDataset(test_questions, test_questions, tokenizer=tokenizer)
     
     data_collator = DataCollatorForSupervisedDataset(tokenizer=tokenizer)
     return dict(train_dataset=train_dataset, data_collator=data_collator)
 
 def train():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--train_type", type=str, default="full")
-    parser.add_argument("--learning_rate", type=float, default=5e-5)
+    parser.add_argument("--train_type", type=str, default="test")
+    parser.add_argument("--learning_rate", type=float, default=2e-5)
     parser.add_argument("--batch_size", type=int, default=128)
-    parser.add_argument("--epochs", type=int, default=3)
+    parser.add_argument("--epochs", type=int, default=2)
     parser.add_argument("--lora", type=bool, default=False)
     parser.add_argument("--model", type=str, default="meta-llama/Meta-Llama-3-8B")
     parser.add_argument("--dont_save_intermediate", action='store_true')

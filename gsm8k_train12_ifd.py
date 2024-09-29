@@ -48,34 +48,53 @@ def make_supervised_data_module(output_dir, train_type, learning_rate, batch_siz
     train_questions_amrith = np.array(train_questions_amrith)
     train_answers_amrith = np.array(train_answers_amrith)
     
+    # if train_type =="0copies":
+    #     num_copies = 0
+    # elif train_type =="1copies":
+    #     num_copies = 1
+    # elif train_type =="3copies":
+    #     num_copies = 3
+    # elif train_type =="7copies":
+    #     num_copies = 7
+    # elif train_type =="15copies":
+    #     num_copies = 15
+    # else:
+    #     raise Exception("Invalid train type")
+    
+    if "0copies" in train_type:
+        num_copies = 0
+    elif "1copies" in train_type:
+        num_copies = 1
+    elif "3copies" in train_type:
+        num_copies = 3
+    elif "2copies" in train_type:
+        num_copies = 2
+    elif "5copies" in train_type:
+        num_copies = 5
+    elif "7copies" in train_type:
+        num_copies = 7
+    elif "15copies" in train_type:
+        num_copies = 15
+    else:
+        raise Exception("Invalid train type")
+    
+    if "50percentile" in train_type:
+        percentile = 50
+    else:
+        raise Exception("Invalid train type")
+    
     num_repeats = len(train_questions_amrith)//len(train_questions_orig)
     assert(len(train_questions_amrith) == len(train_questions_orig)*num_repeats)
     amrith_data_orig_idxs = np.tile(np.arange(len(train_questions_orig)), num_repeats)
+    ifd_scores = np.load("gsm8k_ifd.npy")
     
-    
-    begin_idx = train_type.index("prev{")
-    end_idx = train_type.rindex("}")
-    prev_train_type = train_type[begin_idx+len("prev["): end_idx]
-    print(f"gsm8k_amrith_3epochs_{prev_train_type}_lr2e-05_bs128")
-    prev_idxs =  np.load(f"ckpts/gsm8k_amrith_3epochs_{prev_train_type}_lr2e-05_bs128/amrith_data_subsample_idxs.npy")
-    unmemorized_acc_cummax_all = np.load(f"ckpts/gsm8k_amrith_3epochs_{prev_train_type}_lr2e-05_bs128/unmemorized_acc_cummax_all.npy")[-1]
-    
-    
-    threshold = 0.75
-    new_num_copies = 2
 
     if dist.get_rank() == 0:
-        amrith_data_subsample_idxs_prev = prev_idxs
-        
-        
-        amrith_data_orig_idxs[amrith_data_subsample_idxs_prev] = -1
-        orig_data_subsample_idxs = np.where(unmemorized_acc_cummax_all<=threshold)[0]
-        amrith_data_subsample_idxs_new = np.where([elem in orig_data_subsample_idxs for elem in amrith_data_orig_idxs])[0]
-        amrith_data_subsample_idxs_new = np.random.choice(amrith_data_subsample_idxs_new, int(len(train_questions_orig)*new_num_copies), replace=False)
-        
-        
-        amrith_data_subsample_idxs = np.concatenate([amrith_data_subsample_idxs_prev, amrith_data_subsample_idxs_new])
-        assert(len(set(amrith_data_subsample_idxs))==int(len(train_questions_orig)*new_num_copies)+len(amrith_data_subsample_idxs_prev))
+        # amrith_data_subsample_idxs = np.arange(len(train_questions_orig)*num_copies)
+        threshold = np.percentile(ifd_scores, percentile)
+        orig_data_subsample_idxs = np.where(ifd_scores>=threshold)[0]
+        amrith_data_subsample_idxs = np.where([elem in orig_data_subsample_idxs for elem in amrith_data_orig_idxs])[0]
+        amrith_data_subsample_idxs = np.random.choice(amrith_data_subsample_idxs, int(len(train_questions_orig)*num_copies), replace=False)
         
         
         if not os.path.exists(output_dir):
@@ -106,7 +125,7 @@ def train():
     parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--epochs", type=int, default=3)
     parser.add_argument("--model", type=str, default="meta-llama/Meta-Llama-3-8B")
-    parser.add_argument("--dont_save_intermediate", action='store_true')
+
 
     args = parser.parse_args()
     train_type = args.train_type
@@ -114,14 +133,10 @@ def train():
     epochs = args.epochs
     batch_size = args.batch_size
     model_name_or_path = args.model
-    save_intermediate = not args.dont_save_intermediate
     
     
-    project_name = "gsm8k_amrith"
+    project_name = "gsm8k_amrith_ifd"
     run_name  = f"{epochs}epochs_{train_type}_lr{learning_rate}_bs{batch_size}"
-        
-        
-
     
     batch_size = batch_size
     num_devices = torch.cuda.device_count()
@@ -140,11 +155,6 @@ def train():
     
     output_dir = f"ckpts/{project_name}_{run_name}"
     
-    if save_intermediate:
-        save_strategy = "epoch"
-    else:
-        save_strategy = "no"
-    
 
     training_args = TrainingArguments(
         num_train_epochs = epochs, 
@@ -162,7 +172,7 @@ def train():
         report_to = "none",
         logging_strategy = "steps",
         logging_steps = 25,
-        save_strategy = save_strategy,
+        save_strategy = "epoch",
         save_only_model = True,
         run_name=run_name,
         bf16 = True,
@@ -206,10 +216,7 @@ def train():
     trainer = Trainer(model=model, tokenizer=tokenizer, args=training_args, **data_module)
     trainer.train()
     
-    
-    if not save_intermediate:
-        trainer.save_state()
-        trainer.save_model(output_dir=output_dir)
+
 
 if __name__ == "__main__":
     train()

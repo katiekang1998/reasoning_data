@@ -1,9 +1,82 @@
 
-RUN_NAME=gsm8k_orig_3epochs_full_lr5e-05_bs120_Qwen-14B
 
-CUDA_VISIBLE_DEVICES=4,5 python gsm8k_eval.py --ckpt_dir ckpts/$RUN_NAME/checkpoint-186 --eval_type test --num_samples 5
-CUDA_VISIBLE_DEVICES=4,5 python gsm8k_eval.py --ckpt_dir ckpts/$RUN_NAME/checkpoint-186 --eval_type train --num_samples 5
-CUDA_VISIBLE_DEVICES=4,5 python gsm8k_eval_perplexity.py --ckpt_dir $RUN_NAME --ckpt 186
+# RUN_NAME=math_amrith_easy_deepseek_3epochs_0copies_lr2e-05_bs128
+
+# counter=0
+# for CKPT_DIR in ckpts/$RUN_NAME/checkpoint-*/
+# do
+#     CKPT=$(basename $CKPT_DIR | sed 's/checkpoint-//')
+#     echo $CKPT
+#     CUDA_VISIBLE_DEVICES=$counter python math_eval.py --ckpt_dir ckpts/$RUN_NAME/checkpoint-$CKPT --eval_type test_easy --num_samples 5 --seed 4 &
+#     ((counter++))
+# done 
+# wait
+
+# RUN_NAME=math_amrith_easy_deepseek_3epochs_prev{0copies}_lr2e-05_bs128
+
+# counter=0
+# for CKPT_DIR in ckpts/$RUN_NAME/checkpoint-*/
+# do
+#     CKPT=$(basename $CKPT_DIR | sed 's/checkpoint-//')
+#     echo $CKPT
+#     CUDA_VISIBLE_DEVICES=$counter python math_eval.py --ckpt_dir ckpts/$RUN_NAME/checkpoint-$CKPT --eval_type test_easy --num_samples 5 --seed 4 &
+#     ((counter++))
+# done 
+# wait
+
+# RUN_NAME=math_amrith_easy_deepseek_3epochs_prev{prev{0copies}}_lr2e-05_bs128
+
+# counter=0
+# for CKPT_DIR in ckpts/$RUN_NAME/checkpoint-*/
+# do
+#     CKPT=$(basename $CKPT_DIR | sed 's/checkpoint-//')
+#     echo $CKPT
+#     CUDA_VISIBLE_DEVICES=$counter python math_eval.py --ckpt_dir ckpts/$RUN_NAME/checkpoint-$CKPT --eval_type test_easy --num_samples 5 --seed 4 &
+#     ((counter++))
+# done 
+# wait
+
+CUDA_VISIBLE_DEVICES=0 python math_eval.py --ckpt_dir ckpts/math_amrith_easy_deepseek_3epochs_prev{prev{prev{0copies}}}_lr2e-05_bs128/checkpoint-657 --eval_type test_easy --num_samples 5 --seed 4 &
+CUDA_VISIBLE_DEVICES=1 python math_eval.py --ckpt_dir ckpts/math_amrith_easy_deepseek_3epochs_prev{prev{prev{prev{0copies}}}}_lr2e-05_bs128/checkpoint-1149 --eval_type test_easy --num_samples 5 --seed 4 &
+CUDA_VISIBLE_DEVICES=2 python math_eval.py --ckpt_dir ckpts/math_amrith_easy_deepseek_3epochs_1copies_lr2e-05_bs128/checkpoint-162 --eval_type test_easy --num_samples 5 --seed 4 &
+CUDA_VISIBLE_DEVICES=3 python math_eval.py --ckpt_dir ckpts/math_amrith_easy_deepseek_3epochs_3copies_lr2e-05_bs128/checkpoint-327 --eval_type test_easy --num_samples 5 --seed 4 &
+wait
+
+# CUDA_VISIBLE_DEVICES=0 python math_eval.py --ckpt_dir ckpts/math_amrith_easy_deepseek_3epochs_7copies_lr2e-05_bs128/checkpoint-657 --eval_type test_easy --num_samples 5 --seed 4 &
+# CUDA_VISIBLE_DEVICES=1 python math_eval.py --ckpt_dir ckpts/math_amrith_easy_deepseek_3epochs_13copies_lr2e-05_bs128/checkpoint-1149 --eval_type test_easy --num_samples 5 --seed 4 &
+# wait
+
+
+# RUN_NAME=math_amrith_easy_deepseek_3epochs_prev{prev{prev{0copies}}}_lr2e-05_bs128
+
+# counter=0
+# for CKPT_DIR in ckpts/$RUN_NAME/checkpoint-*/
+# do
+#     CKPT=$(basename $CKPT_DIR | sed 's/checkpoint-//')
+#     echo $CKPT
+#     CUDA_VISIBLE_DEVICES=$counter python math_eval.py --ckpt_dir ckpts/$RUN_NAME/checkpoint-$CKPT --eval_type test_easy --num_samples 5 --seed 4 &
+#     ((counter++))
+# done 
+# wait
+
+
+# RUN_NAME=math_amrith_easy_deepseek_3epochs_prev{prev{prev{prev{0copies}}}}_lr2e-05_bs128
+
+# counter=0
+# for CKPT_DIR in ckpts/$RUN_NAME/checkpoint-*/
+# do
+#     CKPT=$(basename $CKPT_DIR | sed 's/checkpoint-//')
+#     echo $CKPT
+#     CUDA_VISIBLE_DEVICES=$counter python math_eval.py --ckpt_dir ckpts/$RUN_NAME/checkpoint-$CKPT --eval_type test_easy --num_samples 5 --seed 3 &
+#     ((counter++))
+# done 
+# wait
+
+# RUN_NAME=gsm8k_orig_3epochs_full_lr5e-05_bs120_Qwen-14B
+
+# CUDA_VISIBLE_DEVICES=4,5 python gsm8k_eval.py --ckpt_dir ckpts/$RUN_NAME/checkpoint-186 --eval_type test --num_samples 5
+# CUDA_VISIBLE_DEVICES=4,5 python gsm8k_eval.py --ckpt_dir ckpts/$RUN_NAME/checkpoint-186 --eval_type train --num_samples 5
+# CUDA_VISIBLE_DEVICES=4,5 python gsm8k_eval_perplexity.py --ckpt_dir $RUN_NAME --ckpt 186
 
 
 

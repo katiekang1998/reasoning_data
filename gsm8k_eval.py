@@ -85,7 +85,18 @@ elif args.eval_type == "train_gpt4o":
     eval_questions = [question + "\nAnswer: " for question in train_questions]
     eval_questions = [question + answer for question, answer in zip(eval_questions, train_answers_gpt4o)]
     eval_answers = train_answers[:1000]
-    
+elif args.eval_type == "train_first":
+    dataset = load_dataset("gsm8k", "main")
+    train_questions = dataset["train"]["question"][:1000]
+    train_answers = dataset["train"]['answer'][:1000]
+    eval_questions = [question + "\nAnswer: First" for question in train_questions]
+    eval_answers = train_answers
+elif args.eval_type == "train_we":
+    dataset = load_dataset("gsm8k", "main")
+    train_questions = dataset["train"]["question"][:1000]
+    train_answers = dataset["train"]['answer'][:1000]
+    eval_questions = [question + "\nAnswer: We know that" for question in train_questions]
+    eval_answers = train_answers
 elif args.eval_type == "train_subsample":
     dataset = load_dataset("gsm8k", "main")
     train_questions = dataset["train"]["question"][:50]
@@ -206,12 +217,13 @@ sampling_params = SamplingParams(
 
 output = llm.generate(eval_questions, sampling_params)
 
-
 answer_types_all = []
 answers_all = []
+log_probs_all = []
 for i in range(len(output)):
     answer_types = []
     answers = []
+    log_probs = []
     
     
     
@@ -219,11 +231,14 @@ for i in range(len(output)):
         answers.append(item.text)
         answer_type = answer_type_individial(item.text, eval_answers[i])
         answer_types.append(answer_type)
+        log_probs.append(item.cumulative_logprob)
     answer_types_all.append(answer_types)
     answers_all.append(answers)
+    log_probs_all.append(log_probs)
 
 answer_types_all = np.array(answer_types_all)
 answers_all = np.array(answers_all)
+log_probs_all = np.array(log_probs_all)
 print(ckpt_dir)
 print((answer_types_all==0).mean(axis=-1).mean())
 print((answer_types_all==1).mean(axis=-1).mean())
@@ -232,6 +247,7 @@ print((answer_types_all==2).mean(axis=-1).mean())
 
 np.save(os.path.join(ckpt_dir, f"{args.eval_type}_answers{args.num_samples}_seed{args.seed}_temp{args.temp}.npy"), answers_all)
 np.save(os.path.join(ckpt_dir, f"{args.eval_type}_answer_types{args.num_samples}_seed{args.seed}_temp{args.temp}.npy"), answer_types_all)
+np.save(os.path.join(ckpt_dir, f"{args.eval_type}_log_probs{args.num_samples}_seed{args.seed}_temp{args.temp}.npy"), log_probs_all)
 
 if args.eval_type == "test_small":
     import IPython; IPython.embed()

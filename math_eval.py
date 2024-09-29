@@ -18,14 +18,25 @@ args = parser.parse_args()
 
 ckpt_dir = args.ckpt_dir
 
+def get_level(level_str):
+    if level_str[-1] == "?":
+        return -1 
+    else:
+        return int(level_str[-1])
+    
 
 dataset = load_dataset("hendrycks/competition_math")
 train_questions = np.array(dataset["train"]["problem"])
 train_answers = np.array(dataset["train"]['solution'])
+train_levels_orig = np.array(dataset["train"]['level'])
+train_levels_orig = np.array(list(map(get_level, train_levels_orig)))
+train_easy_idxs = np.where((train_levels_orig>=1)*(train_levels_orig<=3))[0]
 
-test_questions = dataset["test"]["problem"]
-test_answers = dataset["test"]['solution']
-
+test_questions = np.array(dataset["test"]["problem"])
+test_answers = np.array(dataset["test"]['solution'])
+test_levels_orig = np.array(dataset["test"]['level'])
+test_levels_orig = np.array(list(map(get_level, test_levels_orig)))
+test_easy_idxs = np.where((test_levels_orig>=1)*(test_levels_orig<=3))[0]
 
 sampling_params = SamplingParams(
     n = args.num_samples,
@@ -36,17 +47,43 @@ sampling_params = SamplingParams(
     stop="\nDone."
 )
 
+
+    
+
 if args.eval_type == "test":
     eval_questions = test_questions
     eval_questions = [question + "\nAnswer:" for question in eval_questions]
     eval_answers = test_answers
+if args.eval_type == "test_easy":
+    eval_questions = test_questions[test_easy_idxs]
+    eval_questions = [question + "\nAnswer:" for question in eval_questions]
+    eval_answers = test_answers[test_easy_idxs]
+elif args.eval_type == "test_small":
+    eval_questions = test_questions[:100]
+    eval_questions = [question + "\nAnswer:" for question in eval_questions]
+    eval_answers = test_answers[:100]
 elif args.eval_type == "train":
     eval_questions = train_questions
     eval_questions = [question + "\nAnswer:" for question in eval_questions]
     eval_answers = train_answers
+elif args.eval_type == "train_easy":
+    eval_questions = train_questions[train_easy_idxs]
+    eval_questions = [question + "\nAnswer:" for question in eval_questions]
+    eval_answers = train_answers[train_easy_idxs]
+elif args.eval_type == "train_first":
+    train_questions = train_questions
+    train_answers = train_answers
+    eval_questions = [question + "\nAnswer: First" for question in train_questions]
+    eval_answers = train_answers
+elif args.eval_type == "train_we":    
+    train_questions = train_questions
+    train_answers = train_answers
+    eval_questions = [question + "\nAnswer: We know that" for question in train_questions]
+    eval_answers = train_answers
+    
 elif args.eval_type == "train_aug_1":
     with open('data/MATH_aug/AugMATH_part1.jsonl', 'r') as json_file:
-        json_list = list(json_file)
+        json_list = list(json_file) 
     train_questions = []
     train_answers = []
     for json_str in json_list:
@@ -164,26 +201,28 @@ def remove_boxed(s):
         return None
 
 def get_aug_answer(full_answer):
-    idx = full_answer.rfind("The answer is")
-    if idx == -1:
-        return None
-    else:
-        answer = full_answer[idx + len("The answer is: "):]
-        answer = answer.replace(":", "").replace("$", "").strip()
-        if len(answer)> 0:
-            if answer[-1] == ".":
-                answer = answer[:-1]
-            left = "\\boxed{"
-            if answer[:len(left)] == left and answer[-1] == "}":
-                answer = answer[len(left):-1]
-        return answer
+    answer_phrases = ["FINAL ANSWER", "answer is", "ANSWER", "Final Answer", "is:", "Answer", "answer"]
+    
+    for answer in answer_phrases:
+        idx = full_answer.rfind(answer)
+        if idx != -1:
+            answer = full_answer[idx + len(answer):]
+            answer = answer.replace(":", "").replace("$", "").replace("\n", "").strip()
+            if len(answer)> 0:
+                if answer[-1] == ".":
+                    answer = answer[:-1]
+                left = "\\boxed{"
+                if answer[:len(left)] == left and answer[-1] == "}":
+                    answer = answer[len(left):-1]
+            return answer 
+    return None
 
 def answer_type_individial(output , answer):
-    if args.eval_type == "test" or args.eval_type == "train":
-        answer = remove_boxed(last_boxed_only_string(answer))
-    else:
-        answer = get_aug_answer(answer)
-    
+    # if args.eval_type == "test" or args.eval_type == "train" or args.eval_type == "test_small":
+    #     answer = remove_boxed(last_boxed_only_string(answer))
+    # else:
+    #     answer = get_aug_answer(answer)
+    answer = remove_boxed(last_boxed_only_string(answer))
     output_answer = remove_boxed(last_boxed_only_string(output))
     if output_answer == None:
         output_answer = get_aug_answer(output)
@@ -218,7 +257,6 @@ answers_all = np.array(answers_all)
 print((answer_types_all==0).mean(axis=-1).mean())
 print((answer_types_all==1).mean(axis=-1).mean())
 print((answer_types_all==2).mean(axis=-1).mean())
-
 
 np.save(os.path.join(ckpt_dir, f"{args.eval_type}_answers{args.num_samples}_seed{args.seed}.npy"), answers_all)
 np.save(os.path.join(ckpt_dir, f"{args.eval_type}_answer_types{args.num_samples}_seed{args.seed}.npy"), answer_types_all)
